@@ -27,7 +27,7 @@ This product will be tested with all subsonic test cases displayed in the PAN AI
 ### Code conventions
 
 * Python's suggested naming conventions are adopted. Initials may also be referred to in capital letters;
-* All functions should be either defined in paneller.py or called from it, so as to ease access;
+* All functions related to aerodynamics should be either defined in paneller.py or called from it, so as to ease access. utils.py may also contain independent geometry-related functions;
 * All FORTRAN backend subroutines should be defined in toolkit.so, obeying the FORTRAN 90 standard;
 * If you don't have fun with your design, you're probably doing it wrong ;)
 
