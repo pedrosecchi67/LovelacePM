@@ -39,17 +39,41 @@ class Panel: #Panel data type
         self.colpoint=np.mean(coords, axis=1)
         self.nvector=(np.cross(coords[:, 1]-coords[:, 0], coords[:, 3]-coords[:, 0])+np.cross(coords[:, 3]-coords[:, 2], coords[:, 1]-coords[:, 2]))/2
         self.nvector/=lg.norm(self.nvector)
+        v1=coords[:, 1]-coords[:, 0]
+        v1-=self.nvector*(self.nvector@v1)
+        v1/=lg.norm(v1)
+        v2=np.cross(self.nvector, v1)
+        self.Mtosys=np.vstack((v1, v2, self.nvector))
+        self.Mtouni=self.Mtosys.T
+        self.conpanels=[]
+        self.conpanelinds=[]
 
 class Solid:
-    #WARNING: USE LEN(SELF.PANELS) ONLY WHEN REFERRING TO ALL (WAKE+GEOMETRY) PANELS.SELF.NPANELS AND SELF.NWAKE ARE THERE FOR OTHER PURPOSES
+    def connect_panels(self, p1, p2, pind1, pind2): #connect two panels during patch formation
+        p1.conpanels+=[p2]
+        p1.conpanelinds+=[pind2]
+        p2.conpanels+=[p1]
+        p2.conpanelinds+=[pind1]
+    #WARNING: USE LEN(SELF.PANELS) ONLY WHEN REFERRING TO ALL (WAKE+GEOMETRY) PANELS. SELF.NPANELS AND SELF.NWAKE ARE THERE FOR OTHER PURPOSES
     def __init__(self, coordlist): #initialize solid geometry with non-wake panels specified in list. INPUT WITH 3X4 ARRAY REFERRING TO FOUR POINT COORDS
         self.panels=[]
         self.npanels=0
         self.nwake=0
         self.addto=[]
-        for arr in coordlist:
-            self.panels+=[Panel(arr)]
-            self.npanels+=1
+        panmat=[]
+        indmat=[]
+        for i in range(len(coordlist)):
+            panmat+=[[]]
+            indmat+=[[]]
+            for j in range(len(coordlist[i])):
+                self.panels+=[Panel(coordlist[i][j])]
+                self.npanels+=1
+                panmat[i]+=[self.panels[-1]]
+                indmat[i]+=[self.npanels-1]
+                if j!=0:
+                    self.connect_panels(self.panels[-1], self.panels[-2], self.npanels-1, self.npanels-2)
+                if i!=0 and len(coordlist[i-1])>j:
+                    self.connect_panels(self.panels[-1], panmat[i-1][j], self.npanels-1, indmat[i-1][j])
         self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.nvv=np.array([0.0]*len(self.panels), dtype='double')
@@ -107,6 +131,17 @@ class Solid:
         self.solution=-self.iaicm@self.nvv
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute loval velocity due to panel influence
+        self.genselfinf()
+        #compute loval velocity due to panel's self-influence
+    def genselfinf(self):
+        for i in range(self.npanels):
+            if len(self.panels[i].conpanels)!=0:
+                coords=[self.panels[i].Mtosys@(p.colpoint-self.panels[i].colpoint) for p in self.panels[i].conpanels]
+                A=np.array([[c[0], c[1]] for c in coords])
+                b=np.array([self.solution[pind]-self.solution[i] for pind in self.panels[i].conpanelinds])
+                grad, res, rank, sings=lg.lstsq(A, b, rcond=None)
+                grad=self.panels[i].Mtouni@np.array([grad[0], grad[1], 0.0])
+                self.delphi[i, :]-=grad/2
     def plotgeometry(self, wake=False): #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
         ax=plt.axes(projection='3d')
