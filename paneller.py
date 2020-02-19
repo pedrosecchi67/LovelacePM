@@ -9,6 +9,7 @@ from mpl_toolkits import mplot3d
 import time as tm
 
 import toolkit
+from utils import *
 
 '''Panel order when generating wake:
 Upper surface: (or airfoil)
@@ -38,47 +39,30 @@ class Panel: #Panel data type
         self.coords=coords.astype(dtype='double')
         self.colpoint=np.mean(coords, axis=1)
         self.nvector=(np.cross(coords[:, 1]-coords[:, 0], coords[:, 3]-coords[:, 0])+np.cross(coords[:, 3]-coords[:, 2], coords[:, 1]-coords[:, 2]))/2
+        self.S=(lg.norm(np.cross(coords[:, 1]-coords[:, 0], coords[:, 3]-coords[:, 0]))+\
+            lg.norm(np.cross(coords[:, 3]-coords[:, 2], coords[:, 1]-coords[:, 2])))/2
         self.nvector/=lg.norm(self.nvector)
-        v1=coords[:, 1]-coords[:, 0]
-        v1-=self.nvector*(self.nvector@v1)
-        v1/=lg.norm(v1)
-        v2=np.cross(self.nvector, v1)
-        self.Mtosys=np.vstack((v1, v2, self.nvector))
-        self.Mtouni=self.Mtosys.T
-        self.conpanels=[]
-        self.conpanelinds=[]
 
 class Solid:
-    def connect_panels(self, p1, p2, pind1, pind2): #connect two panels during patch formation
-        p1.conpanels+=[p2]
-        p1.conpanelinds+=[pind2]
-        p2.conpanels+=[p1]
-        p2.conpanelinds+=[pind1]
-    #WARNING: USE LEN(SELF.PANELS) ONLY WHEN REFERRING TO ALL (WAKE+GEOMETRY) PANELS. SELF.NPANELS AND SELF.NWAKE ARE THERE FOR OTHER PURPOSES
-    def __init__(self, coordlist): #initialize solid geometry with non-wake panels specified in list. INPUT WITH 3X4 ARRAY REFERRING TO FOUR POINT COORDS
+    def __init__(self, matlist): #initialize solid geometry with non-wake panels specified in list. INPUT WITH 3X4 ARRAY REFERRING TO FOUR POINT COORDS.
+        #first list layer: list of "mats", each a list of list of panels abbuted together for computing of self-induced velocity
         self.panels=[]
         self.npanels=0
+        self.matdims=[]
+        for coordlist in matlist:
+            self.matdims+=[[len(coordlist[0]), len(coordlist)]]
+            for i in range(len(coordlist)):
+                for j in range(len(coordlist[i])):
+                    self.panels+=[Panel(coordlist[i][j])]
+                    self.npanels+=1
         self.nwake=0
         self.addto=[]
-        panmat=[]
-        indmat=[]
-        for i in range(len(coordlist)):
-            panmat+=[[]]
-            indmat+=[[]]
-            for j in range(len(coordlist[i])):
-                self.panels+=[Panel(coordlist[i][j])]
-                self.npanels+=1
-                panmat[i]+=[self.panels[-1]]
-                indmat[i]+=[self.npanels-1]
-                if j!=0:
-                    self.connect_panels(self.panels[-1], self.panels[-2], self.npanels-1, self.npanels-2)
-                if i!=0 and len(coordlist[i-1])>j:
-                    self.connect_panels(self.panels[-1], panmat[i-1][j], self.npanels-1, indmat[i-1][j])
         self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.nvv=np.array([0.0]*len(self.panels), dtype='double')
         self.solution=np.array([0.0]*len(self.panels), dtype='double')
         self.Cps=np.array([0.0]*len(self.panels), dtype='double')
+        self.dbg=np.array([0.0]*len(self.panels), dtype='double')
     def genwakepanels(self, wakecombs, offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
         #wakecombs: list of lists, first element in sublist is upper surface panel
         coords=np.array([[0.0]*4]*3)
@@ -104,10 +88,9 @@ class Solid:
             if i<self.npanels:
                 colmat[i, :]=self.panels[i].colpoint
         #self.aicm3=np.array([[[0.0]*len(self.panels)]*len(self.panels)]*3)
+        self.aicm3=toolkit.gen_aicm_nowake(coordmat[0:self.npanels, :, :], colmat)
         if self.nwake!=0:
-            self.aicm3=toolkit.gen_aicm(coordmat, colmat, np.array(self.addto))
-        else:
-            self.aicm3=toolkit.gen_aicm_nowake(coordmat, colmat)
+            toolkit.gen_wake_aicm(self.aicm3, coordmat[self.npanels:self.nwake+self.npanels, :, :], colmat, self.addto)
         self.aicm=np.array([[0.0]*self.npanels]*self.npanels, dtype='double')
         for i in range(self.npanels):
             for j in range(self.npanels):
@@ -118,10 +101,7 @@ class Solid:
     def gennvv(self): #Generate vector containing normal velocities
         for i in range(self.npanels):
             self.nvv[i]=self.panels[i].nvector@self.vbar[i, :]
-    def calcpress(self, Uinf=1.0): #calculate local pressure coefficients
-        for i in range(self.npanels):
-            self.Cps[i]=(Uinf**2-lg.norm(self.delphi[i, :]+self.vbar[i, :])**2)/Uinf**2
-    def solve(self, damper=0.0): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero variable.
+    def solve(self, damper=0.0): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
         #self.iaicm=toolkit.aicm_inversion(self.aicm, damper)
         if damper!=0.0:
             self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
@@ -134,15 +114,27 @@ class Solid:
         self.genselfinf()
         #compute loval velocity due to panel's self-influence
     def genselfinf(self):
+        n=0
+        for i in range(len(self.matdims)):
+            matdim=self.matdims[i]
+            colmat=np.zeros((matdim[1], matdim[0], 3))
+            nvectmat=np.zeros((matdim[1], matdim[0], 3))
+            w=np.zeros((matdim[1], matdim[0]))
+            for i in range(matdim[1]):
+                for j in range(matdim[0]):
+                    w[i, j]=self.solution[n+i*matdim[0]+j]
+                    colmat[i, j, :]=self.panels[n+i*matdim[0]+j].colpoint
+                    nvectmat[i, j, :]=self.panels[n+i*matdim[0]+j].nvector
+            l=surf_grad(matdim, colmat, nvectmat, w)
+            for i in range(matdim[0]*matdim[1]):
+                self.dbg[i+n]=lg.norm(l[i])
+                self.delphi[i+n, :]-=l[i]/2
+            n+=matdim[0]*matdim[1]
+    def calcpress(self, Uinf=1.0):
         for i in range(self.npanels):
-            if len(self.panels[i].conpanels)!=0:
-                coords=[self.panels[i].Mtosys@(p.colpoint-self.panels[i].colpoint) for p in self.panels[i].conpanels]
-                A=np.array([[c[0], c[1]] for c in coords])
-                b=np.array([self.solution[pind]-self.solution[i] for pind in self.panels[i].conpanelinds])
-                grad, res, rank, sings=lg.lstsq(A, b, rcond=None)
-                grad=self.panels[i].Mtouni@np.array([grad[0], grad[1], 0.0])
-                self.delphi[i, :]-=grad/2
-    def plotgeometry(self, wake=False): #plot geometry and local velocity vectors, either with or without wake panels
+            self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
+    def plotgeometry(self, wake=False, xlim=[], ylim=[], zlim=[]):
+        #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
         ax=plt.axes(projection='3d')
         order=np.array([0, 1, 2, 3, 0])
@@ -158,6 +150,12 @@ class Solid:
                 #ax.quiver(self.panels[i].colpoint[0], self.panels[i].colpoint[1], self.panels[i].colpoint[2], \
                 #    self.panels[i].nvector[0]*self.solution[i], \
                 #    self.panels[i].nvector[1]*self.solution[i], self.panels[i].nvector[2]*self.solution[i])
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
@@ -172,6 +170,14 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
+    def calcforces(self):
+        self.SCFres=np.array([0.0, 0.0, 0.0])
+        self.SCMres=np.array([0.0, 0.0, 0.0])
+        dcf=np.array([0.0, 0.0, 0.0])
+        for i in range(self.npanels):
+            dcf=self.Cps[i]*self.panels[i].nvector*self.panels[i].S
+            self.SCMres-=np.cross(self.panels[i].colpoint, dcf)
+            self.SCFres-=dcf
 
 '''sld=Solid([np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
 #sld.plotgeometry()

@@ -36,10 +36,10 @@ for i in range(len(phis)-1):
             conlist+=[[thlast, n]]
         n+=1
 t=tm.time()
-sld=Solid(coordlist)
+sld=Solid([coordlist])
 #sld.genwakepanels(conlist)
 #sld.plotgeometry(wake=True)
-sld.genvbar(0.2)
+sld.genvbar(0.5)
 sld.gennvv()
 print('Solid generation and pre-processing: '+str(tm.time()-t))
 t=tm.time()
@@ -49,11 +49,11 @@ t=tm.time()
 sld.solve(damper=c)
 print('Solving and post-processing: '+str(tm.time()-t))
 
-'''sld.plotgeometry()
+sld.plotgeometry()
+#plt.scatter([p.colpoint[0] for p in sld.panels], \
+#    [lg.norm(sld.delphi[i, :]+sld.vbar[i, :])/lg.norm(sld.vbar[i, :]) \
+#    for i in range(len(sld.panels))])
 plt.scatter([p.colpoint[0] for p in sld.panels], \
-    [lg.norm(sld.delphi[i, :]+sld.vbar[i, :])/lg.norm(sld.vbar[i, :]) \
+    [sld.solution[i] \
     for i in range(len(sld.panels))])
 plt.show()
-
-for i in range(sld.npanels):
-    print(sld.panels[i].nvector@(sld.delphi[i, :]+sld.vbar[i, :]))'''

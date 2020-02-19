@@ -1,14 +1,42 @@
-[[0.02164787 0.36943459 0.79072794 0.88529385]
- [0.97427122 0.42364793 0.46298053 0.72752047]
- [0.18750825 0.28440592 0.09620873 0.59595417]]
-[[0.30597923 0.20344246 0.17598331 0.43976118]
- [0.10262271 0.96176601 0.95225361 0.32966035]
- [0.30095085 0.27343563 0.21355231 0.45733722]]
-[[[-0.24022013  0.19070755]
-  [-2.44972346  4.22712757]]
+[QUOTE=sbaffini;758486]I'm not sure, but from your description it seems that you are using just 1 single vortex ring for the wake of the whole wing, instead of 1 for each couple of panels meeting at the trailing edge. If this is the case, this is completely wrong and not expected to give any useful result.
 
- [[-0.70675159  0.22173424]
-  [-1.47805327  0.17806001]]
+Moreover, it is not clear what you mean by vorticity equal to the difference between the lower and upper TE panels, separated by a small gap. There should be no gap at all between the panels (except for the singularity issue in this method, that I mentioned in another post, which requires removing one equation/panel per closed body).
 
- [[ 1.4592099   0.09433511]
-  [ 1.31594925 -5.05804951]]]
+In addition, Kutta condition has to be part of the equations. So if you solve the system correctly (I suggest you to check that by computing the residual), it is necessarily satisfied if it is part of the equations. In this method the Kutta condition is usually implemented by modifying the coefficients of the two panels meeting at the trailing edge (or at any other line where a vortex sheet is assumed to be released in the flow).
+
+May I also ask how did you implement the self-induced velocity part due to the gradient of the Gamma on the surface? How do you handle the high curvature regions? Do you actually split the wing surface in multiple patches and apply the method separately, say, on the lower and upper surface? Because the method presented in the slides above would surely fail when applied across the tip of the wing, not to mention the trailing edge (where, actually, you should consider the wake panel).
+
+Finally, have you actually taken into account the singularity issue I mentioned in the other post?
+
+May I also suggest to start with a 0 degree case of a wing with a symmetric profile (elliptic or not)?[/QUOTE]
+
+
+I'm using one wake vortex ring per trailing edge panel, not a single wake ring.
+
+
+I've reprogrammed the surface gradient computation for something like:
+
+
+
+* Used a rectangular (mxn panels) mesh, defining [math]\xi[/math] and [math]\eta[/math] coordinates which vary from 0 to 1 respectively along the m rows and the n columns of panels in the mesh;
+* Derived [math]\Gamma[/math] by [math]\xi[/math] and [math]\eta[/math];
+* Computed [math]dx/d\xi[/math], [math]dy/d\xi[/math] and other cartesian coordinate derivatives along the surface;
+* Determined the surface gradient as the solution for the system:
+[CODE]lg.solve(np.vstack((np.array([[dxdxi[i, j], dydxi[i, j], dzdxi[i, j]], \
+               [dxdeta[i, j], dydeta[i, j], dzdeta[i, j]]]), nvectmat[i, j, :])), \
+                   np.array([dwdxi[i, j], dwdeta[i, j], 0.0]))
+
+[/CODE]
+
+So i. e. calculating a gradient vector that results in the computed [math]d\Gamma/d\xi[/math], [math]d\Gamma/d\eta[/math] values along the surface and is normal to it.
+
+Surface gradient calculations seem to be right, and have worked appropriately both for my sphere test case and the 0 AOA NACA 0012 case, disregarding wake AICs - so, for non-lifting cases.
+
+I've now switched for a straight wing with a NACA 4412 airfoil, without any trailing edge gap. The high-curvature problem I was having with the elliptic wing tip is no longer an issue, but yet I've been reaching extremely high trailing edge Cps and velocities thanks to how the calculated [math]\Gamma[/math]s quickly vary to equal values at the trailing edge, as in the attached plot. I've checked and the computed surface gradient also jumps to an absurdly high value close to the TE.
+
+Plus, velocities at the last upper and lower panels do not match, so
+Kutta condition is not being reinforced by the trailig edge vortex, though its AIC is being calculated in exactly the same fashion as that of any other panel and its geometry is correct.
+
+Even though, all velocity vectors are normal to the surface, so at least Neumann condition is being respected and the linear system is being correctly solved.
+
+Plus, I couldn't find a freely available pdf for Srivastava's paper the Bangalore institute's page says its only available for repository staff: https://nal-ir.nal.res.in/1726/
