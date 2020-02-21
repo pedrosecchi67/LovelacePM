@@ -1,138 +1,50 @@
 !FORTRAN 90 subroutines to optimize mathematical operations, currently including:
 ! 1- AIC generation
+! 2- Calculation of local self-induced velocity based on adjacent lines
+! 3- Add wake influence to panel-wise AIC matrix
 
-subroutine gen_aicm_nowake(npan, coords, colpoints, aicm)!x, aicmy, aicmz)
-    integer, intent(IN) :: npan
-    real(8), intent(IN) :: coords(1:npan, 1:3, 1:4), colpoints(1:npan, 1:3)
-    real(8), intent(OUT) :: aicm(1:3, 1:npan, 1:npan)!x(1:npan, 1:npan), aicmy(1:npan, 1:npan), aicmz(1:npan, 1:npan)
-
-    integer :: i, j
-    real(8) :: p1(3), p2(3), np1, np2, vbar(3)
-
-    do i=1, npan
-        do j=1, npan
-            vbar=(/0.0, 0.0, 0.0/)
-
-            !segment 1
-            p1=coords(j, 1:3, 1)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 2)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 2
-            p1=coords(j, 1:3, 2)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 3)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 3
-            p1=coords(j, 1:3, 3)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 4)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 4
-            p1=coords(j, 1:3, 4)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 1)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            aicm(1:3, i, j)=vbar
-        end do
-    end do
-end subroutine gen_aicm_nowake
-
-subroutine gen_wake_aicm(nwake, npan, aicm, coords, colpoints, addto)
-    integer, intent(IN) :: nwake, npan
-    real(8), intent(INOUT) :: aicm(1:3, 1:npan, 1:npan)
-    real(8), intent(IN) :: coords(1:nwake, 1:3, 1:4)
-    real(8), intent(IN) :: colpoints(1:npan, 1:3)
-    integer, intent(IN) :: addto(1:nwake, 1:2)
+subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
+    integer, intent(IN) :: npan, nlin
+    real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), colpoints(1:npan, 1:3)
+    real(8), intent(OUT) :: aicm(1:3, 1:npan, 1:nlin)
 
     integer :: i, j
-    real(8) :: vbar(1:3), p1(1:3), p2(1:3), np1, np2
+    real(8) :: a(3), b(3), na, nb
 
     do i=1, npan
-        do j=1, nwake
-            vbar=(/0.0, 0.0, 0.0/)
-            !segment 1
-            p1=coords(j, 1:3, 1)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 2)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 2
-            p1=coords(j, 1:3, 2)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 3)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 3
-            p1=coords(j, 1:3, 3)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 4)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            !segment 4
-            p1=coords(j, 1:3, 4)-colpoints(i, 1:3)
-            p2=coords(j, 1:3, 1)-colpoints(i, 1:3)
-            !p1
-            if(norm2(p2-p1)>0.00001) then
-                np1=norm2(p1)
-                np2=norm2(p2)
-                vbar=vbar+((1.0/np1+1.0/np2)*(/p1(2)*p2(3)-p1(3)*p2(2), &
-                p1(3)*p2(1)-p1(1)*p2(3), p1(1)*p2(2)-p1(2)*p2(1)/)/(np1*np2+ &
-                dot_product(p1, p2)))/12.5663706
-            end if
-
-            if(addto(j, 1)/=0) then
-                aicm(1:3, i, addto(j, 1))=aicm(1:3, i, addto(j, 1))+vbar
-            end if
-            if(addto(j, 2)/=0) then
-                aicm(1:3, i, addto(j, 2))=aicm(1:3, i, addto(j, 2))-vbar
-            end if
+        do j=1, nlin
+            a=lines(j, 1:3, 1)-colpoints(i, 1:3)
+            b=lines(j, 1:3, 2)-colpoints(i, 1:3)
+            na=norm2(a)
+            nb=norm2(b)
+            aicm(1:3, i, j)=(((/a(2)*b(3)-a(3)*b(2), &
+            a(3)*b(1)-a(1)*b(3), &
+            a(1)*b(2)-a(2)*b(1)/)*(1.0/na+1.0/nb))/&
+            (na*nb+dot_product(a, b)))/12.5663706
         end do
     end do
-end subroutine gen_wake_aicm
+end subroutine aicm_lines_gen
+
+subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, haswake, vdv)
+    integer, intent(IN) :: nlin, nloc
+    real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), solution(1:nlin), S, nvec(1:3)
+    integer, intent(IN) :: loclines(1:nloc)
+    logical, intent(IN) :: haswake
+    real(8), intent(OUT) :: vdv(3)
+
+    integer :: i
+    real(8) :: Gamma(3)
+
+    vdv=(/0.0, 0.0, 0.0/)
+
+    do i=1, nloc
+        Gamma=solution(loclines(i))*(lines(loclines(i), 1:3, 2)-lines(loclines(i), 1:3, 1))
+        vdv=vdv+(/Gamma(2)*nvec(3)-Gamma(3)*nvec(2), Gamma(3)*nvec(1)-Gamma(1)*nvec(3), Gamma(1)*nvec(2)-Gamma(2)*nvec(1)/)
+    end do
+    
+    if(haswake) then
+        vdv=vdv/((nloc+1)*S)
+    else
+        vdv=vdv/(nloc*S)
+    end if
+end subroutine self_influence

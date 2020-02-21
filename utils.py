@@ -49,22 +49,3 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         intra=aflpts[tipind:np.size(aflpts, 0), :]
         extra=np.flip(extra, axis=0)
         return aflpts, extra, intra
-
-def surf_grad(matdims, colmat, nvectmat, w):
-    lambdax=np.linspace(0.0, 1.0, matdims[0])
-    lambday=np.linspace(0.0, 1.0, matdims[1])
-    dxdlx=np.gradient(colmat[:, :, 0], lambdax, axis=1)
-    dydlx=np.gradient(colmat[:, :, 1], lambdax, axis=1)
-    dzdlx=np.gradient(colmat[:, :, 2], lambdax, axis=1)
-    dxdly=np.gradient(colmat[:, :, 0], lambday, axis=0)
-    dydly=np.gradient(colmat[:, :, 1], lambday, axis=0)
-    dzdly=np.gradient(colmat[:, :, 2], lambday, axis=0)
-    dwdlx=np.gradient(w, lambdax, axis=1)
-    dwdly=np.gradient(w, lambday, axis=0)
-    l=[]
-    for i in range(np.size(dxdlx, 0)):
-        for j in range(np.size(dxdlx, 1)):
-            l+=[lg.solve(np.vstack((np.array([[dxdlx[i, j], dydlx[i, j], dzdlx[i, j]], \
-                [dxdly[i, j], dydly[i, j], dzdly[i, j]]]), nvectmat[i, j, :])), \
-                    np.array([dwdlx[i, j], dwdly[i, j], 0.0]))]
-    return l
