@@ -36,7 +36,7 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         xpts=strategy(np.linspace(0.0, 1.0, disc))
         intracs=CubicSpline(intra[:, 0], intra[:, 1])
         intra=np.vstack((xpts, intracs(xpts))).T
-        aflpts=np.vstack((extra, intra))
+        aflpts=np.vstack((extra, intra[1:np.size(intra, 0), :]))
     if remove_TE_gap:
         midpoint=(aflpts[-1, :]+aflpts[0, :])/2
         aflpts[-1, :]=midpoint
