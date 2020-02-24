@@ -14,7 +14,7 @@ The system requirements defined for the final product are labelled below, along 
 (2) - flexibility of configuration and calculation method definition by the user;
 (3) - higher accuracy and completeness of the analysis performed, in spite of the low-fidelity Euler equation solver that serves as its kernel.
 
-* Performing full configuration analysis of subsonic aircraft in an amount of time that doesn't exceed 50 s per AOA for a 5000-panel mesh; (1) [not yet completed]
+* Performing full configuration analysis of subsonic aircraft in an amount of time that doesn't exceed 50 s per AOA for a 5000-panel mesh; (1) [completed on low-end (Euler solver is ready and capable of proposed performance)]
 * Performing viscous effect estimations based on viscid-inviscid coupling exclusively with geometry, Mach and Reynolds specifications, accepting custom initial guesses for boundary layer thickness; (2, 3) [not yet implemented]
 * Modelling fuselages, nacelles and engines accurately in terms of euler solution and viscous flow; (3) [not yet completed]
 * Approximating rotor behaviour through means of geometry and flow information, provided either by previous BEMT or LLT calculations (I. E., recieving local inflow characteristics along the rotor); (3) [not yet implemented]
@@ -28,8 +28,7 @@ This product will be tested with all subsonic test cases displayed in the PAN AI
 
 * Python's suggested naming conventions are adopted. Initials may also be referred to in capital letters;
 * All functions related to aerodynamics should be either defined in paneller.py or called from it, so as to ease access. utils.py may also contain independent geometry-related functions;
-* All FORTRAN backend subroutines should be defined in toolkit.so, obeying the FORTRAN 90 standard;
-* If you don't have fun with your design, you're probably doing it wrong ;)
+* All FORTRAN backend subroutines should be defined in toolkit.so, obeying the FORTRAN 90 standard.
 
 ### Dependencies
 
