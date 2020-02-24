@@ -41,13 +41,14 @@ class Panel: #Panel data type
         self.wakelines=[]
 
 class Solid:
-    def __init__(self, sldlist, wraparounds=[]): #solid data type
+    def __init__(self, sldlist=[], wraparounds=[]): #solid data type
         self.panels=[]
         self.lines=[]
         self.addto=[]
         self.npanels=0
         self.nlines=0
         self.nwake=0 #number of wake panels
+        self.solavailable=False
         if len(wraparounds)==0:
             wraparounds=[[]]*len(sldlist)
         horzlines=[]
@@ -55,22 +56,24 @@ class Solid:
         sldcnt=0
         for sld in sldlist: #define first patches (without their interconnections)
             wraps=wraparounds[sldcnt]
-            self.addpatch(sld, wraps)
+            self.addpatch(sld, wraps=wraps)
             sldcnt+=1
-    def addpatch(self, sld, wraps, prevlines={}): #add panel based on point grid (list of lists)
-        # returns: arrays of, respectively, horizontal and vertical line indexes.
+    def addpatch(self, sld, wraps=[], prevlines={}): #add panel based on point grid (list of lists)
+        # returns: arrays of, respectively, horizontal and vertical line indexes; panel indexes list of lists;
+        # point grid inserted as input, for external reference from high-end functions
         horzlines=[]
         vertlines=[]
+        paninds=[]
         for i in range(len(sld)-1):
             horzlines+=[[]]
             vertlines+=[[]]
             for j in range(len(sld[0])-1):
-                if i==0 and 'down' in prevlines:
+                if i==0 and 'low' in prevlines:
                     horzlines[-1]+=[prevlines['low'][j]]
                 else:
                     horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T)]
                 if j==0 and 'right' in prevlines:
-                    vertlines[-1]+=[prevlines['right'][j]]
+                    vertlines[-1]+=[prevlines['right'][i]]
                 else:
                     vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T)]
         if 0 in wraps: #if wrapped in x direction (inner list layer), repeat the first lateral vertical lines
@@ -93,11 +96,12 @@ class Solid:
                     horzlines[-1]+=[prevlines['up'][i]]
             else:
                 for i in range(len(sld[0])-1):
-                    horzlines[-1]+=[self.addline(np.vstack((sld[0][i], sld[0][i+1])).T)]
+                    horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T)]
         for i in range(len(sld)-1):
+            paninds+=[[]]
             for j in range(len(sld[0])-1):
-                self.addpanel([horzlines[i][j], vertlines[i][j], horzlines[i+1][j], vertlines[i][j+1]])
-        return horzlines, vertlines
+                paninds[-1]+=[self.addpanel([horzlines[i][j], vertlines[i][j], horzlines[i+1][j], vertlines[i][j+1]])]
+        return horzlines, vertlines, paninds, sld
     def addline(self, coords, tolerance=0.00005):
         #neglect lines of neglectible size
         if lg.norm(coords[:, 1]-coords[:, 0])>tolerance:
@@ -122,6 +126,7 @@ class Solid:
                     llist+=[l+1]
             n+=1
         self.panels+=[Panel(llist)]
+        return self.npanels-1
     def addwakepanel(self, refup, refdown, indup=0, indown=2, offsetleft=np.array([1000.0, 0.0, 0.0]), offsetright=np.array([]), \
         tolerance=0.00005): #add line segments correspondent to panel wake, and remove "inup-th"/"indown-th" line segment in the panel's list
         if len(offsetright)==0:
@@ -161,7 +166,7 @@ class Solid:
         if refdown!=-1:
             self.panels[refdown].lines.pop(indown)
             self.panels[refdown].wakelines+=[-l for l in indsup]
-    def genwakepanels(self, wakecombs, offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
+    def genwakepanels(self, wakecombs=[], offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
         #wakecombs: list of lists, first element in sublist is upper surface panel
         for i in range(len(wakecombs)):
             self.addto+=[[wakecombs[i][0]+1, wakecombs[i][1]+1]]
@@ -178,27 +183,66 @@ class Solid:
             else:
                 coords=np.vstack((coords, self.lines[p.lines[i]-1, :, 1]))
         return coords.T
+    def line_getcoords(self, ind): #return line coordinates in order presented in panel, based on panel.lines element
+        if ind>0:
+            return self.lines[ind-1, :, :]
+        else:
+            return self.lines[-1-ind, :, np.array([1, 0])]
+    def line_getvec(self, ind): #return vector linking points in line
+        if ind>0:
+            return self.lines[ind-1, :, 1]-self.lines[ind-1, :, 0]
+        else:
+            return self.lines[-ind-1, :, 0]-self.lines[-ind-1, :, 1]
+    def line_midpoint(self, ind): #return midpoint of line
+        return np.mean(self.lines[abs(ind)-1, :, :], axis=1)
+    def nvect_diradjust(self, patchinds, vect): #adjust normal vectors in patch to follow a certain direction
+        for patchlist in patchinds:
+            for i in patchlist:
+                if self.panels[i].nvector@vect<0.0:
+                    self.panels[i].nvector*=-1
+    def nvect_radadjust(self, patchinds, center, inwards=False): #adjust normal vectors in patch to follow radial convergent or 
+        #divergent distribution
+        if inwards:
+            for patchlist in patchinds:
+                for i in patchlist:
+                    if self.panels[i].nvector@(self.panels[i].colpoint-center)>0.0:
+                        self.panels[i].nvector*=-1
+        else:
+            for patchlist in patchinds:
+                for i in patchlist:
+                    if self.panels[i].nvector@(self.panels[i].colpoint-center)<0.0:
+                        self.panels[i].nvector*=-1
+    def lineadjust(self, patchinds): #adjust line fortran index signals to comply with dextrogyre panel convention
+        p=np.array([0.0, 0.0, 0.0])
+        u=np.array([0.0, 0.0, 0.0])
+        for patchlist in patchinds:
+            for i in patchlist:
+                for lind in range(len(self.panels[i].lines)):
+                    p=self.lines[abs(self.panels[i].lines[lind])-1, :, 0]-self.panels[i].colpoint
+                    u=self.lines[abs(self.panels[i].lines[lind])-1, :, 1]-self.lines[abs(self.panels[i].lines[lind])-1, :, 0]
+                    if (u@np.cross(self.panels[i].nvector, p)*self.panels[i].lines[lind]<0.0):
+                        self.panels[i].lines[lind]*=-1
     def end_preprocess(self): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
         #consequences may arise if done otherwise
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
         for p in self.panels:
-            coords=self.panel_getcoords(p)
-            u=coords[:, 1]-coords[:, 0]
-            v=coords[:, 2]-coords[:, 1]
+            u=self.line_getvec(p.lines[0])
+            v=self.line_getvec(p.lines[1])
             p.nvector=np.cross(u, v)
             p.S=0.0
             if len(p.lines)==3:
                 p.S=lg.norm(p.nvector)/2
                 p.nvector/=lg.norm(p.nvector)
-                p.colpoint=(coords[:, 0]+coords[:, 1]+coords[:, 2])/3
+                p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1])+self.line_midpoint(p.lines[2]))/3
             elif len(p.lines)==4:
-                p.S=(lg.norm(p.nvector)+lg.norm(np.cross(coords[:, 1]-coords[:, 2], coords[:, 3]-coords[:, 2])))/2
+                p.S=(lg.norm(p.nvector)+lg.norm(np.cross(self.line_getvec(p.lines[2]), self.line_getvec(p.lines[3]))))/2
                 p.nvector/=lg.norm(p.nvector)
-                p.colpoint=(coords[:, 0]+coords[:, 1]+coords[:, 2]+coords[:, 3])/4
+                p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1])+self.line_midpoint(p.lines[2])+\
+                    self.line_midpoint(p.lines[3]))/4
             else:
                 p.nvector=np.array([0.0, 0.0, 0.0])
-                p.colpoint=(coords[:, 0]+coords[:, 1])/2
+                p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1]))/2
         #initialize result vectors
         self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
@@ -262,10 +306,10 @@ class Solid:
         for i in range(self.nlines):
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
         if self.solavailable:
-            #ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-            #    [p.colpoint[2] for p in self.panels], [p.nvector[0] for p in self.panels], \
-            #        [p.nvector[1] for p in self.panels], \
-            #            [p.nvector[2] for p in self.panels])
+            '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+                [p.colpoint[2] for p in self.panels], [p.nvector[0]*0.005 for p in self.panels], \
+                    [p.nvector[1]*0.005 for p in self.panels], \
+                        [p.nvector[2]*0.005 for p in self.panels])'''
             ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
                 [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
                     [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
@@ -290,8 +334,14 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
+    def eulersolve(self, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0):
+        self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
+        self.gennvv()
+        self.genaicm()
+        self.solve(damper=damper)
+        self.calcpress(Uinf=Uinf)
 
-'''sld=Solid([np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
+'''sld=Solid(sldlist=[np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
 #sld.plotgeometry()
 sld.genaicm()
 print(sld.aicm3[:, 0, 0])'''

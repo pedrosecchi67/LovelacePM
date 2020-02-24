@@ -24,6 +24,6 @@ pan2=np.array([[0.02830673, 0.45917184, 0.40259338, 0.39839244], \
 print(pan1)
 print(pan2)
 
-sld=Solid([pan1, pan2])
+sld=Solid(sldlist=[pan1, pan2])
 sld.genaicm()
 print(sld.aicm3)

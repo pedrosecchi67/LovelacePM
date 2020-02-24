@@ -36,9 +36,9 @@ for i in range(len(phis)-1):
         if j==len(thetas)-2:
             conlist+=[[thlast, n]]
         n+=1
-sld=Solid([coordlist], wraparounds=[[1]])
+sld=Solid(sldlist=[coordlist], wraparounds=[[1]])
 sld.end_preprocess()
-#sld.genwakepanels(conlist)
+#sld.genwakepanels(wakecombs=conlist)
 sld.genvbar(Uinf=Uinf)
 sld.gennvv()
 print('Solid generation and pre-processing: '+str(tm.time()-t))

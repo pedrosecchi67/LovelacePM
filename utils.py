@@ -11,7 +11,7 @@ import time as tm
 import toolkit
 
 def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
-    remove_TE_gap=False, extra_intra=False): #read arfoil data points from Selig format file
+    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False): #read arfoil data points from Selig format file
     if ext_append:
         infile=open(afl+'.dat', 'r')
     else:
@@ -23,9 +23,6 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         linelist=lines[i].split()
         aflpts+=[[float(linelist[0]), float(linelist[1])]]
     aflpts=np.array(aflpts)
-    midpt=(aflpts[-1, :]+aflpts[0, :])/2
-    aflpts[-1, :]=midpt
-    aflpts[0, :]=midpt
     if disc!=0:
         leading_edge_ind=np.argmin(aflpts[:, 0])
         extra=aflpts[0:leading_edge_ind, :]
@@ -37,10 +34,18 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         intracs=CubicSpline(intra[:, 0], intra[:, 1])
         intra=np.vstack((xpts, intracs(xpts))).T
         aflpts=np.vstack((extra, intra[1:np.size(intra, 0), :]))
+    aflpts[:, 0]-=0.25
+    intra[:, 0]-=0.25
+    extra[:, 0]-=0.25
     if remove_TE_gap:
         midpoint=(aflpts[-1, :]+aflpts[0, :])/2
         aflpts[-1, :]=midpoint
         aflpts[0, :]=midpoint
+    if inverse:
+        aflpts[:, 1]=-aflpts[:, 1]
+    if incidence!=0.0:
+        R=np.array([[cos(incidence), -sin(incidence)], [sin(incidence), cos(incidence)]])
+        aflpts=(R@(aflpts.T)).T
     if not extra_intra:
         return aflpts
     else:
@@ -49,3 +54,14 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         intra=aflpts[tipind:np.size(aflpts, 0), :]
         extra=np.flip(extra, axis=0)
         return aflpts, extra, intra
+
+def wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0):
+    R=np.array([[cos(gamma), sin(gamma), 0.0], [-sin(gamma), cos(gamma), 0.0], [0.0, 0.0, 1.0]])
+    aflnew=(R@np.vstack((afl[:, 0]*c+xpos, np.array([zpos]*np.size(afl, 0)), afl[:, 1]*c))).T
+    aflnew[:, 1]+=ypos
+    return aflnew
+
+def trimlist(n, l):
+    while(len(l)<n):
+        l+=[l[0]]
+    return l

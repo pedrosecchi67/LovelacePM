@@ -18,9 +18,6 @@ Script to test Euler solution with a NACA 4412 straight wing
 
 xdisc=20
 airfoil, extra, intra=read_afl('n4412', ext_append=True, remove_TE_gap=True, disc=xdisc, extra_intra=True)
-airfoil[:, 0]-=0.25
-extra[:, 0]-=0.25
-intra[:, 0]-=0.25
 b=2.0
 c=0.3
 Uinf=0.01
@@ -37,9 +34,9 @@ for i in range(np.size(airfoil, 0)):
         totlist[-1]+=[np.array([airfoil[i, 0]*elip_factor[j]*c, ys[j], airfoil[i, 1]*elip_factor[j]*c])]
 for i in range(len(ys)-1):
     conlist+=[[i, i+(len(ys)-1)*(np.size(airfoil, 0)-2)]]
-sld=Solid([totlist], wraparounds=[[1]])
+sld=Solid(sldlist=[totlist], wraparounds=[[1]])
 sld.end_preprocess()
-sld.genwakepanels(conlist, a=radians(5.0))
+sld.genwakepanels(wakecombs=conlist, a=radians(5.0))
 sld.plotgeometry(ylim=[-b/2, b/2], xlim=[-b/2, b/2], zlim=[-b/2, b/2])
 t=tm.time()
 sld.genvbar(Uinf, a=radians(5.0))

@@ -36,8 +36,8 @@ for i in range(len(xs)-1):
             wakeon+=[[npan, -1]]
         npan+=1
     geomlist+=[coords]
-sld=Solid([geomlist])
-sld.genwakepanels(wakeon, a=radians(30.0))
+sld=Solid(sldlist=[geomlist])
+sld.genwakepanels(wakecombs=wakeon, a=radians(30.0))
 sld.genvbar(u, a=radians(30.0))
 sld.gennvv()
 t=tm.time()
