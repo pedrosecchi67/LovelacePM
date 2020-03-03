@@ -11,125 +11,99 @@ import time as tm
 
 import toolkit
 from utils import *
+from body import *
 
-class wing:
-    def __init__(self, sld): #wing initializer
+class wing_section: #class to define wing section based on airfoil info
+    def __init__(self, c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
+        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False):
+        self.points=wing_afl_positprocess(read_afl(afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
+            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse), gamma=gamma, c=c, xpos=CA_position[0], \
+                ypos=CA_position[1], zpos=CA_position[2])
+
+class wing_quadrant: #wing region between two airfoil sections
+    def __init__(self, sld, sect1=None, sect2=None):
+        #by convention, set section 1 as the rightmost section in the quadrant (positive in y axis)
         self.sld=sld
-    def patchcompose(self, afls=['n4412'], chords=[1.0], ypos=[0.0, 1.0], xpos=[0.0], incidences=[0.0], \
-        gammas=[0.0], xdisc=20, ydisc=20, yspacing=np.array([]), xstrat=lambda x: (np.sin(pi*x-pi/2)+1)/2, zbase=0.0, \
-            prevlines={}):
-        #patch composer based on wing's sectional parameters. The wing is meant to be a guideline for other abuted
-        #surfaces, therefore this function does not accept prevlines dictionary as input.
-        nsects=len(ypos)
-        afls=trimlist(nsects, afls)
-        chords=trimlist(nsects, chords)
-        xpos=trimlist(nsects, xpos)
-        incidences=trimlist(nsects, incidences)
-        gammas=trimlist(nsects, gammas)
-        if len(yspacing)==0:
-            yspacing=np.linspace(ypos[0], ypos[-1], 20)
+        self.sect1=sect1
+        self.sect2=sect2
+    def trim_bybody(self, contactbody, sectside=2, tolerance=0.00005):
+        #trim wing section by body contact, for abutment
+        if sectside==2:
+            ps=self.sect1.points
+            us=self.sect2.points-self.sect1.points
+            for i in range(np.size(self.sect2.points, 0)):
+                newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
+                self.sect2.points[i, :]=newpt
+                if errorcode:
+                    print('An error has been detected while performing abutments. Please check geometry.')
+        else:
+            ps=self.sect2.points
+            us=self.sect1.points-self.sect2.points
+            for i in range(np.size(self.sect2.points, 0)):
+                newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
+                self.sect1.points[i, :]=newpt
+                if errorcode:
+                    print('An error has been detected while performing abutments. Please check geometry.')
+    def plot_input(self, fig=None, ax=None, show=False, xlim=[], \
+        ylim=[], zlim=[], colour='blue'): #plot input geometry data
+        if fig==None:
+            fig=plt.figure()
+        if ax==None:
+            plt.axes(projection='3d')
         
-        zpos=[zbase]
-        for i in range(1, nsects):
-            zpos+=[zpos[-1]+tan(gammas[i])*(ypos[i]-ypos[i-1])]
-        zspacing=np.interp(yspacing, np.array(ypos), np.array(zpos))
-        xspacing=np.interp(yspacing, np.array(ypos), np.array(xpos))
-        gspacing=np.interp(yspacing, np.array(ypos), np.array(gammas))
-        cspacing=np.interp(yspacing, np.array(ypos), np.array(chords))
-
-        afl=np.zeros((nsects, 2*xdisc-1, 2))
-        discafl=np.zeros((len(yspacing), 2*xdisc-1, 2))
-        for i in range(nsects):
-            afl[i, :, :]=read_afl(afls[i], ext_append=True, header_lines=1, disc=xdisc, \
-                strategy=xstrat, remove_TE_gap=True, extra_intra=False, \
-                    incidence=incidences[i], inverse=False)
-        for i in range(np.size(afl, 1)):
-            discafl[:, i, 0]=np.interp(yspacing, np.array(ypos), afl[:, i, 0])
-            discafl[:, i, 1]=np.interp(yspacing, np.array(ypos), afl[:, i, 1])
+        ax.plot3D(self.sect1.points[:, 0], self.sect1.points[:, 1], self.sect1.points[:, 2], colour)
+        ax.plot3D(self.sect2.points[:, 0], self.sect2.points[:, 1], self.sect2.points[:, 2], colour)
         
-        pointpos=np.zeros((len(yspacing), np.size(afl, 1), 3))
-        for i in range(len(yspacing)):
-            pointpos[i, :, :]=wing_afl_positprocess(discafl[i, :, :], gamma=gspacing[i], xpos=xspacing[i], \
-                ypos=yspacing[i], zpos=zspacing[i], c=cspacing[i])
-        pts=[]
-        for i in range(np.size(afl, 1)):
-            pts+=[[]]
-            for j in range(len(yspacing)-1, -1, -1):
-                pts[-1]+=[pointpos[j, i, :]]
+        for i in range(np.size(self.sect1.points, 0)):
+            ax.plot3D([self.sect1.points[i, 0], self.sect2.points[i, 0]], \
+                [self.sect1.points[i, 1], self.sect2.points[i, 1]], \
+                    [self.sect1.points[i, 2], self.sect2.points[i, 2]], colour)
         
-        horzlines, vertlines, paninds, sldpts=self.sld.addpatch(pts, [1], prevlines=prevlines)
-        self.paninds=paninds
-        self.horzlines=horzlines
-        self.vertlines=vertlines
-        wakecombs=[[paninds[0][i], paninds[-1][i]] for i in range(len(paninds[0]))]
-        return horzlines, vertlines, paninds, sldpts, wakecombs
-    def plotpressure(self):
-        for i in range(len(self.paninds[0])):
-            Cps=[]
-            xs=[]
-            for j in range(len(self.paninds)):
-                Cps+=[self.sld.Cps[self.paninds[j][i]]]
-                xs+=[self.sld.panels[self.paninds[j][i]].colpoint[0]]
-            cloc=max(xs)
-            xs=[x/cloc for x in xs]
-            plt.plot(xs, Cps)
-        plt.xlabel('x/c')
-        plt.ylabel('Cp')
-        plt.show()
-    def plotpressure3D(self, xlim=[], ylim=[], zlim=[]):
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-
-        xsl=[]
-        ysl=[]
-        Cpsl=[]
-        xsu=[]
-        ysu=[]
-        Cpsu=[]
-
-        panindsl=[]
-        panindsu=[]
-
-        if self.sld.solavailable:
-            for panlist in self.paninds:
-                for p in panlist:
-                    if self.sld.panels[p].nvector[2]<0:
-                        xsl+=[self.sld.panels[p].colpoint[0]]
-                        ysl+=[self.sld.panels[p].colpoint[1]]
-                        Cpsl+=[self.sld.Cps[p]]
-                        panindsl+=[p]
-                    else:
-                        xsu+=[self.sld.panels[p].colpoint[0]]
-                        ysu+=[self.sld.panels[p].colpoint[1]]
-                        Cpsu+=[self.sld.Cps[p]]
-                        panindsu+=[p]
-            ax.scatter3D(xsl, ysl, Cpsl, 'blue')
-            ax.scatter3D(xsu, ysu, Cpsu, 'red')
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
         if len(ylim)!=0:
             ax.set_ylim3d(ylim[0], ylim[1])
         if len(zlim)!=0:
             ax.set_zlim3d(zlim[0], zlim[1])
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
-    def plotpatch(self, xlim=[], ylim=[], zlim=[]):
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-
-        for hllist in self.horzlines:
-            for l in hllist:
-                ax.plot3D(self.sld.lines[l, 0, :], self.sld.lines[l, 1, :], self.sld.lines[l, 2, :], 'gray')
-        for vllist in self.vertlines:
-            for l in vllist:
-                ax.plot3D(self.sld.lines[l, 0, :], self.sld.lines[l, 1, :], self.sld.lines[l, 2, :], 'gray')
-        if len(xlim)!=0:
-            ax.set_xlim3d(xlim[0], xlim[1])
-        if len(ylim)!=0:
-            ax.set_ylim3d(ylim[0], ylim[1])
-        if len(zlim)!=0:
-            ax.set_zlim3d(zlim[0], zlim[1])
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
+        if show:
+            plt.show()
+    def patchcompose(self, prevlines={}, strategy=lambda x: x, ldisc=20):
+        #code for prevlines: 'intra_left', 'intra_right', 'extra_...
+        #and wing quadrant patch additions
+        lspacing=strategy(np.linspace(0.0, 1.0, ldisc))
+        extrasld=[]
+        xdisc=int(np.size(self.sect1.points, 0)/2)+1
+        for i in range(xdisc):
+            extrasld+=[[]]
+            for eta in lspacing:
+                extrasld[-1]+=[eta*self.sect1.points[i, :]+(1.0-eta)*self.sect2.points[i, :]]
+        intrasld=[]
+        for i in range(np.size(self.sect1.points, 0)-1, xdisc-2, -1):
+            intrasld+=[[]]
+            for eta in lspacing:
+                intrasld[-1]+=[eta*self.sect2.points[i, :]+(1.0-eta)*self.sect1.points[i, :]]
+        
+        prev={}
+        if 'extra_right' in prevlines:
+            prev['right']=prev['extra_right']
+        if 'extra_left' in prevlines:
+            prev['left']=prev['extra_left']
+        horzlines, vertlines, paninds, points=self.sld.addpatch(extrasld, prevlines=prev)
+        self.extraright_lines=[vertlines[i][0] for i in range(len(vertlines))]
+        self.extraright_points=[points[i][0] for i in range(len(points))]
+        self.extraleft_lines=[vertlines[i][-1] for i in range(len(vertlines))]
+        self.extraleft_points=[points[i][-1] for i in range(len(points))]
+        LE_lines=[horzlines[-1][i] for i in range(len(horzlines[-1]))]
+        LE_lines.reverse()
+        TE_lines=[horzlines[0][i] for i in range(len(horzlines[0]))]
+        TE_lines.reverse()
+        prev={'up':LE_lines, 'low':TE_lines}
+        if 'intra_right' in prevlines:
+            prev['left']=prevlines['intra_right']
+        if 'intra_left' in prevlines:
+            prev['right']=prevlines['intra_left']
+        horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'])
+        self.intraright_lines=[vertlines[i][-1] for i in range(len(vertlines))]
+        self.intraright_points=[points[i][-1] for i in range(len(points))]
+        self.intraleft_lines=[vertlines[i][0] for i in range(len(vertlines))]
+        self.intraleft_points=[points[i][0] for i in range(len(points))]

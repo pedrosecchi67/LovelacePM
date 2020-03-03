@@ -58,9 +58,11 @@ class Solid:
             wraps=wraparounds[sldcnt]
             self.addpatch(sld, wraps=wraps)
             sldcnt+=1
-    def addpatch(self, sld, wraps=[], prevlines={}): #add panel based on point grid (list of lists)
+    def addpatch(self, sld, wraps=[], prevlines={}, invlats=[]): #add panel based on point grid (list of lists)
         # returns: arrays of, respectively, horizontal and vertical line indexes; panel indexes list of lists;
         # point grid inserted as input, for external reference from high-end functions
+        # lines provided with -2 index in prevlines will be accounted as new lines, and as -1, 
+        # as inexistent (dismissable length) lines
         horzlines=[]
         vertlines=[]
         paninds=[]
@@ -69,11 +71,17 @@ class Solid:
             vertlines+=[[]]
             for j in range(len(sld[0])-1):
                 if i==0 and 'low' in prevlines:
-                    horzlines[-1]+=[prevlines['low'][j]]
+                    if prevlines['low'][j]!=-2:
+                        horzlines[-1]+=[prevlines['low'][j]]
+                    else:
+                        horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T)]
                 else:
                     horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T)]
                 if j==0 and 'right' in prevlines:
-                    vertlines[-1]+=[prevlines['right'][i]]
+                    if prevlines['right'][i]!=-2:
+                        vertlines[-1]+=[prevlines['right'][i]]
+                    else:
+                        vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T)]
                 else:
                     vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T)]
         if 0 in wraps: #if wrapped in x direction (inner list layer), repeat the first lateral vertical lines
@@ -82,7 +90,10 @@ class Solid:
         else:
             if 'left' in prevlines:
                 for i in range(len(sld)-1):
-                    vertlines[i]+=[prevlines['left'][i]]
+                    if prevlines['left'][i]!=-2:
+                        vertlines[i]+=[prevlines['left'][i]]
+                    else:
+                        vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T)]
             else:
                 for i in range(len(sld)-1):
                     vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T)]
@@ -93,14 +104,26 @@ class Solid:
         else:
             if 'up' in prevlines:
                 for i in range(len(sld[0])-1):
-                    horzlines[-1]+=[prevlines['up'][i]]
+                    if prevlines['up'][i]!=-2:
+                        horzlines[-1]+=[prevlines['up'][i]]
+                    else:
+                        horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T)]
             else:
                 for i in range(len(sld[0])-1):
                     horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T)]
         for i in range(len(sld)-1):
             paninds+=[[]]
             for j in range(len(sld[0])-1):
-                paninds[-1]+=[self.addpanel([horzlines[i][j], vertlines[i][j], horzlines[i+1][j], vertlines[i][j+1]])]
+                l=[]
+                if j==len(sld[0])-2 and 'left' in invlats:
+                    l+=[3]
+                if j==0 and 'right' in invlats:
+                    l+=[1]
+                if i==0 and 'low' in invlats:
+                    l+=[0]
+                if i==len(sld)-2 and 'up' in invlats:
+                    l+=[2]
+                paninds[-1]+=[self.addpanel([horzlines[i][j], vertlines[i][j], horzlines[i+1][j], vertlines[i][j+1]], invs=l)]
         return horzlines, vertlines, paninds, sld
     def addline(self, coords, tolerance=0.00005):
         #neglect lines of neglectible size
@@ -113,7 +136,7 @@ class Solid:
             return self.nlines-1
         else:
             return -1
-    def addpanel(self, lines): #line list: includes indexes summed by one, inverted to indicate oposite direction
+    def addpanel(self, lines, invs=[]): #line list: includes indexes summed by one, inverted to indicate oposite direction
         #for vortex line segment
         self.npanels+=1
         llist=[]
@@ -124,6 +147,8 @@ class Solid:
                     llist+=[-1-l]
                 else:
                     llist+=[l+1]
+                if n in invs:
+                    llist[-1]=-llist[-1]
             n+=1
         self.panels+=[Panel(llist)]
         return self.npanels-1
@@ -212,7 +237,9 @@ class Solid:
                 for i in patchlist:
                     if self.panels[i].nvector@(self.panels[i].colpoint-center)<0.0:
                         self.panels[i].nvector*=-1
-    def lineadjust(self, patchinds): #adjust line fortran index signals to comply with dextrogyre panel convention
+    def lineadjust(self, patchinds=[]): #adjust line fortran index signals to comply with dextrogyre panel convention
+        if len(patchinds)==0:
+            patchinds=[list(range(self.npanels))]
         p=np.array([0.0, 0.0, 0.0])
         u=np.array([0.0, 0.0, 0.0])
         for patchlist in patchinds:
@@ -243,6 +270,7 @@ class Solid:
             else:
                 p.nvector=np.array([0.0, 0.0, 0.0])
                 p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1]))/2
+        self.lineadjust()
         #initialize result vectors
         self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
@@ -302,7 +330,6 @@ class Solid:
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
         ax=plt.axes(projection='3d')
-        order=np.array([0, 1, 2, 3, 0])
         for i in range(self.nlines):
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
         if self.solavailable:
@@ -314,6 +341,29 @@ class Solid:
                 [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
                     [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
                         [self.vbar[i, 2]+self.delphi[i, 2] for i in range(self.npanels)])
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.show()
+    def plotnormals(self, xlim=[], ylim=[], zlim=[], factor=1.0):
+        #plot normal vectors of panels. Function essentially produced for geometry gen. debugging
+        fig=plt.figure()
+        ax=plt.axes(projection='3d')
+        for i in range(self.nlines):
+            ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
+        ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+            [p.colpoint[2] for p in self.panels], [p.nvector[0]*factor for p in self.panels], \
+                [p.nvector[1]*factor for p in self.panels], \
+                    [p.nvector[2]*factor for p in self.panels])
+        '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+            [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
+                [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
+                    [self.vbar[i, 2]+self.delphi[i, 2] for i in range(self.npanels)])'''
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
         if len(ylim)!=0:

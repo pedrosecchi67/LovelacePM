@@ -23,6 +23,9 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         linelist=lines[i].split()
         aflpts+=[[float(linelist[0]), float(linelist[1])]]
     aflpts=np.array(aflpts)
+    if incidence!=0.0:
+        R=np.array([[cos(incidence), -sin(incidence)], [sin(incidence), cos(incidence)]])
+        aflpts=(R@(aflpts.T)).T/cos(incidence)
     if disc!=0:
         leading_edge_ind=np.argmin(aflpts[:, 0])
         extra=aflpts[0:leading_edge_ind, :]
@@ -43,9 +46,6 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         aflpts[0, :]=midpoint
     if inverse:
         aflpts[:, 1]=-aflpts[:, 1]
-    if incidence!=0.0:
-        R=np.array([[cos(incidence), -sin(incidence)], [sin(incidence), cos(incidence)]])
-        aflpts=(R@(aflpts.T)).T
     if not extra_intra:
         return aflpts
     else:
@@ -56,12 +56,24 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         return aflpts, extra, intra
 
 def wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0):
+    #position airfoil coordinate in 3D axis system
     R=np.array([[cos(gamma), sin(gamma), 0.0], [-sin(gamma), cos(gamma), 0.0], [0.0, 0.0, 1.0]])
-    aflnew=(R@np.vstack((afl[:, 0]*c+xpos, np.array([zpos]*np.size(afl, 0)), afl[:, 1]*c))).T
+    aflnew=(R@np.vstack((afl[:, 0]*c+xpos, np.zeros(np.size(afl, 0)), afl[:, 1]*c))).T
     aflnew[:, 1]+=ypos
+    aflnew[:, 2]+=zpos
+    aflnew[:, 0]+=xpos
     return aflnew
 
-def trimlist(n, l):
+def trimlist(n, l): #trim list to defined length based on first element. For input handling
     while(len(l)<n):
         l+=[l[0]]
     return l
+
+def trim_polars(thspacing): #trim polars to eliminate congruous equivalences
+    validpos=thspacing>=pi
+    thspacing[validpos]-=2*pi
+    return thspacing
+
+def gen_circdefsect_coords(disc): #present input coordinates for circular defsect
+    thetas=np.linspace(0.0, 2*pi, disc)
+    return np.vstack((np.sin(thetas), np.cos(thetas))).T
