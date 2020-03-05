@@ -191,11 +191,16 @@ class Solid:
         if refdown!=-1:
             self.panels[refdown].lines.pop(indown)
             self.panels[refdown].wakelines+=[-l for l in indsup]
-    def genwakepanels(self, wakecombs=[], offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
+    def genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
         #wakecombs: list of lists, first element in sublist is upper surface panel
+        #wakeinds: list of lists indicating corresponding wake vortex line segment index to apply kutta condition to
+        if len(wakeinds)==0:
+            wakeinds=[[0, 2]]
+        trimlist(len(wakecombs), wakeinds)
         for i in range(len(wakecombs)):
-            self.addto+=[[wakecombs[i][0]+1, wakecombs[i][1]+1]]
-            self.addwakepanel(wakecombs[i][0], wakecombs[i][1], offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset)
+            self.addto+=[[wakecombs[i][0], wakecombs[i][1]]]
+            self.addwakepanel(wakecombs[i][0], wakecombs[i][1], indup=wakeinds[i][0], indown=wakeinds[i][0], \
+                offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset)
         #straight, alpha and beta defined single wake panel as default
     def panel_getcoords(self, p): #get coordinates for panel based on line vectors and lists
         if p.lines[0]<0:
@@ -254,6 +259,9 @@ class Solid:
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
         for p in self.panels:
+            '''coords=self.panel_getcoords(p)
+            u=coords[:, 1]-coords[:, 0]
+            v=coords[:, 2]-coords[:, 1]'''
             u=self.line_getvec(p.lines[0])
             v=self.line_getvec(p.lines[1])
             p.nvector=np.cross(u, v)
@@ -262,13 +270,17 @@ class Solid:
                 p.S=lg.norm(p.nvector)/2
                 p.nvector/=lg.norm(p.nvector)
                 p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1])+self.line_midpoint(p.lines[2]))/3
+                #p.colpoint=(coords[:, 0]+coords[:, 1]+coords[:, 2])/3
             elif len(p.lines)==4:
                 p.S=(lg.norm(p.nvector)+lg.norm(np.cross(self.line_getvec(p.lines[2]), self.line_getvec(p.lines[3]))))/2
+                #p.S=(lg.norm(p.nvector)+lg.norm(np.cross(coords[:, 1]-coords[:, 2], coords[:, 3]-coords[:, 2])))/2
                 p.nvector/=lg.norm(p.nvector)
+                #p.colpoint=(coords[:, 0]+coords[:, 1]+coords[:, 2]+coords[:, 3])/4
                 p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1])+self.line_midpoint(p.lines[2])+\
                     self.line_midpoint(p.lines[3]))/4
             else:
                 p.nvector=np.array([0.0, 0.0, 0.0])
+                #p.colpoint=(coords[:, 0]+coords[:, 1])/2
                 p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1]))/2
         self.lineadjust()
         #initialize result vectors

@@ -20,8 +20,8 @@ xdisc=20
 airfoil, extra, intra=read_afl('n4412', ext_append=True, remove_TE_gap=True, disc=xdisc, extra_intra=True)
 b=2.0
 c=0.3
-Uinf=0.01
-ys=np.linspace(-b/2, b/2, 20)
+Uinf=0.2
+ys=np.linspace(b/2, -b/2, 20)
 #ys=np.sin(np.linspace(-pi/2, pi/2, 30))*b/2
 elip_factor=np.sqrt((b**2/4-0.9*ys**2)*4/b**2)
 #elip_factor=np.array([1.0]*len(ys))
@@ -97,3 +97,5 @@ ax=plt.axes(projection='3d')
 ax.scatter3D(xlocs1, ylocs1, g1, 'red')
 ax.scatter3D(xlocs2, ylocs2, g2, 'blue')
 plt.show()
+
+sld.plotnormals(ylim=[-b/2, b/2], xlim=[-b/2, b/2], zlim=[-b/2, b/2], factor=0.01)

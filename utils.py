@@ -69,11 +69,19 @@ def trimlist(n, l): #trim list to defined length based on first element. For inp
         l+=[l[0]]
     return l
 
-def trim_polars(thspacing): #trim polars to eliminate congruous equivalences
+def trim_polars(th):
+    if th>pi:
+        return th-2*pi
+    elif th<-pi:
+        return th+2*pi
+
+def trim_polars_array(thspacing): #trim polars to eliminate congruous equivalences
     validpos=thspacing>=pi
     thspacing[validpos]-=2*pi
+    validpos=thspacing<=-pi
+    thspacing[validpos]+=2*pi
     return thspacing
 
 def gen_circdefsect_coords(disc): #present input coordinates for circular defsect
-    thetas=np.linspace(0.0, 2*pi, disc)
+    thetas=np.linspace(-pi, pi, disc)
     return np.vstack((np.sin(thetas), np.cos(thetas))).T

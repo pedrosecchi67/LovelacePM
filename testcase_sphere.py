@@ -18,8 +18,8 @@ Script to test the Euler solution modules with a generic sphere geometry
 Uinf=1.0
 t=tm.time()
 c=0.01
-thetas=np.linspace(pi, -pi, 5)
-phis=np.linspace(-pi/2, pi/2, 3)
+thetas=np.linspace(-pi, pi, 20)
+phis=np.linspace(-pi/2, pi/2, 20)
 R=1.0
 coordlist=[]
 conlist=[]
@@ -57,8 +57,6 @@ plt.scatter([p.colpoint[0] for p in sld.panels], \
 #    [sld.solution[i] \
 #    for i in range(len(sld.panels))])
 plt.show()
-
-print(sld.lines)
 
 '''n=0
 for p in sld.panels:

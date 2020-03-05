@@ -23,9 +23,11 @@ class wing_section: #class to define wing section based on airfoil info
 class wing_quadrant: #wing region between two airfoil sections
     def __init__(self, sld, sect1=None, sect2=None):
         #by convention, set section 1 as the rightmost section in the quadrant (positive in y axis)
+        #vertical fins should have sect1 as their upmost section
         self.sld=sld
         self.sect1=sect1
         self.sect2=sect2
+        self.wakecomb=[]
     def trim_bybody(self, contactbody, sectside=2, tolerance=0.00005):
         #trim wing section by body contact, for abutment
         if sectside==2:
@@ -83,12 +85,16 @@ class wing_quadrant: #wing region between two airfoil sections
             for eta in lspacing:
                 intrasld[-1]+=[eta*self.sect2.points[i, :]+(1.0-eta)*self.sect1.points[i, :]]
         
+        #wake info
+        self.wakecombs=[]
+        
         prev={}
         if 'extra_right' in prevlines:
             prev['right']=prev['extra_right']
         if 'extra_left' in prevlines:
             prev['left']=prev['extra_left']
         horzlines, vertlines, paninds, points=self.sld.addpatch(extrasld, prevlines=prev)
+        TE_extra=paninds[0] #for wake generation
         self.extraright_lines=[vertlines[i][0] for i in range(len(vertlines))]
         self.extraright_points=[points[i][0] for i in range(len(points))]
         self.extraleft_lines=[vertlines[i][-1] for i in range(len(vertlines))]
@@ -103,7 +109,13 @@ class wing_quadrant: #wing region between two airfoil sections
         if 'intra_left' in prevlines:
             prev['right']=prevlines['intra_left']
         horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'])
+        TE_intra=paninds[0]
+        TE_intra.reverse() #for wake generation
         self.intraright_lines=[vertlines[i][-1] for i in range(len(vertlines))]
         self.intraright_points=[points[i][-1] for i in range(len(points))]
         self.intraleft_lines=[vertlines[i][0] for i in range(len(vertlines))]
         self.intraleft_points=[points[i][0] for i in range(len(points))]
+
+        #wake info
+        for i in range(len(TE_extra)):
+            self.wakecombs+=[[TE_extra[i], TE_intra[i]]]
