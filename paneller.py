@@ -8,37 +8,19 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import scipy.sparse as sps
 import time as tm
+from matplotlib.cm import jet
 
 import toolkit
 from utils import *
-
-'''Panel order when generating wake:
-Upper surface: (or airfoil)
-     |           |
------p3----------p2-----
-     |           |
-     |           |
-     |           |
------p0----------p1-----
-     w           w
-     w           w
-     w           w
-lower surface:
-     |           |
------p0----------p1-----
-     |           |
-     |           |
-     |           |
------p3----------p2-----
-     w           w
-     w           w
-     w           w
-     '''
 
 class Panel: #Panel data type
     def __init__(self, lines):
         self.lines=lines
         self.wakelines=[]
+        self.no_selfinf=[]
+    def nocirc_enforce(self, linind):
+        if linind!=-1:
+            self.no_selfinf+=[linind]
 
 class Solid:
     def __init__(self, sldlist=[], wraparounds=[]): #solid data type
@@ -212,7 +194,13 @@ class Solid:
                 coords=np.vstack((coords, self.lines[-1-p.lines[i], :, 1]))
             else:
                 coords=np.vstack((coords, self.lines[p.lines[i]-1, :, 1]))
-        return coords.T
+        coords=coords.T
+        if np.size(coords, 1)==3:
+            temp=coords
+            coords=np.zeros((3, 4))
+            coords[:, 0:3]=temp
+            coords[:, -1]=temp[:, -1]
+        return coords
     def line_getcoords(self, ind): #return line coordinates in order presented in panel, based on panel.lines element
         if ind>0:
             return self.lines[ind-1, :, :]
@@ -254,10 +242,13 @@ class Solid:
                     u=self.lines[abs(self.panels[i].lines[lind])-1, :, 1]-self.lines[abs(self.panels[i].lines[lind])-1, :, 0]
                     if (u@np.cross(self.panels[i].nvector, p)*self.panels[i].lines[lind]<0.0):
                         self.panels[i].lines[lind]*=-1
-    def end_preprocess(self): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
+                        print('WARNING: line '+str(abs(self.panels[i].lines[lind])-1)+' in panel '+\
+                            str(i)+' had to be inverted. Please check integrity of patchcompose() functions')
+    def end_preprocess(self, tolerance=0.00005): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
         #consequences may arise if done otherwise
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
+        n=0
         for p in self.panels:
             '''coords=self.panel_getcoords(p)
             u=coords[:, 1]-coords[:, 0]
@@ -282,7 +273,10 @@ class Solid:
                 p.nvector=np.array([0.0, 0.0, 0.0])
                 #p.colpoint=(coords[:, 0]+coords[:, 1])/2
                 p.colpoint=(self.line_midpoint(p.lines[0])+self.line_midpoint(p.lines[1]))/2
-        self.lineadjust()
+                p.S=0.0
+            if p.S<=tolerance**2:
+                print('WARNING: panel '+str(n)+' displayed incoherent area '+str(p.S)+' with '+str(len(p.lines))+' lines')
+            n+=1
         #initialize result vectors
         self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
         self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
@@ -290,6 +284,9 @@ class Solid:
         self.solution=np.array([0.0]*len(self.panels), dtype='double')
         self.solavailable=False
         self.Cps=np.array([0.0]*len(self.panels), dtype='double')
+        self.forces=[]
+        #adjust lines in case any is set inconsistently with respect to anti-clockwise convention in panel
+        self.lineadjust()
     def gen_panline(self): #generate panel-line correspondence matrix
         self.panline_matrix=np.zeros((self.nlines, self.npanels), dtype='double')
         for i in range(self.npanels):
@@ -318,18 +315,24 @@ class Solid:
     def gennvv(self): #Generate vector containing normal velocities
         for i in range(self.npanels):
             self.nvv[i]=self.panels[i].nvector@self.vbar[i, :]
-    def gen_selfinf(self):
+    def gen_selfinf(self): #generate self-influence velocity according to Srivastava's equations
         for i in range(self.npanels):
+            linelist=[]
+            for l in self.panels[i].lines:
+                if not int(abs(l))-1 in self.panels[i].no_selfinf:
+                    linelist+=[int(abs(l))]
             self.delphi[i, :]+=toolkit.self_influence(self.lines, self.solution_line, self.panels[i].S, \
-                self.panels[i].nvector, np.array([int(abs(l)) for l in self.panels[i].lines]), len(self.panels[i].wakelines)>0)
+                self.panels[i].nvector, np.array(linelist))
     def solve(self, damper=0.0): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
         #self.iaicm=toolkit.aicm_inversion(self.aicm, damper)
+
         if damper!=0.0:
             self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
         else:
             self.iaicm=slg.inv(self.aicm)
-        #self.solution=slg.solve(self.aicm, -self.nvv)
-        self.solution=-self.iaicm@self.nvv
+        tango=-self.nvv
+
+        self.solution=self.iaicm@tango
         self.solution_line=self.panline_matrix@self.solution
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
@@ -338,13 +341,15 @@ class Solid:
     def calcpress(self, Uinf=1.0):
         for i in range(self.npanels):
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
-    def plotgeometry(self, xlim=[], ylim=[], zlim=[]):
+    def calcforces(self): #compute force correspondent to unitary dynamic pressure on each panel
+        self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i] for i in range(self.npanels)]
+    def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
         ax=plt.axes(projection='3d')
         for i in range(self.nlines):
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
-        if self.solavailable:
+        if self.solavailable and velfield:
             '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
                 [p.colpoint[2] for p in self.panels], [p.nvector[0]*0.005 for p in self.panels], \
                     [p.nvector[1]*0.005 for p in self.panels], \
@@ -385,23 +390,25 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def plotpress(self, factor=1.0): #plot local Cps (scaled by a floating point factor so as to ease visualization) as normal vectors
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-        order=np.array([0, 1, 2, 3, 0])
-        for i in range(self.npanels):
-            ax.plot3D(self.panels[i].coords[0, order], self.panels[i].coords[1, order], self.panels[i].coords[2, order], 'gray')
-            ax.quiver(self.panels[i].colpoint[0], self.panels[i].colpoint[1], self.panels[i].colpoint[2], self.Cps[i]*self.panels[i].nvector[0]*factor, \
-                self.Cps[i]*self.panels[i].nvector[1]*factor, self.Cps[i]*self.panels[i].nvector[2]*factor)
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
-    def eulersolve(self, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0):
+    def eulersolve(self, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True):
+        if echo:
+            print('========Euler solution=======')
+        t=tm.time()
         self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
         self.gennvv()
+        if echo:
+            print('Pre-processing: '+str(tm.time()-t)+' s')
+        t=tm.time()
         self.genaicm()
+        if echo:
+            print('AIC matrix generation: '+str(tm.time()-t)+' s')
+        t=tm.time()
         self.solve(damper=damper)
         self.calcpress(Uinf=Uinf)
+        self.calcforces()
+        if echo:
+            print('Solution and post-processing: '+str(tm.time()-t)+' s')
+            print('=============================')
 
 '''sld=Solid(sldlist=[np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
 #sld.plotgeometry()

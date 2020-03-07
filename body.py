@@ -309,7 +309,7 @@ class body: #body definition class for center definition to obtain polar cooridi
 
         return thx(xspacing)
     def patchcompose(self, leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, xdisc=100, \
-        thstrategy=lambda x: x, thdisc_upleft=20, thdisc_upright=20, thdisc_downleft=20, thdisc_downright=20):
+        thstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, thdisc_upleft=20, thdisc_upright=20, thdisc_downleft=20, thdisc_downright=20):
         #function to generate patch to add panels belonging to fuselage. Queues designate abutted surfaces at a certain point
         #in the surface (e. g. upqueue to vertical fin, leftqueue to left wing (wing 1)...)
         #must be ran AFTER abutted wings's 'patchcompose's.
@@ -325,6 +325,9 @@ class body: #body definition class for center definition to obtain polar cooridi
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(leftqueue, lnlines, prevlateral=[], intra=False, right=True), \
             'right':prevline_organize(upqueue, unlines, prevlateral=[], intra=True, right=True)})
         uplat=[linerow[0] for linerow in vertlines]
+        self.paninds=[]
+        for panlist in paninds:
+            self.paninds+=panlist
         
         #left side, -pi/2 to -pi patch
         thleft=self.theta_queueident(lowqueue, xspacing=dxdisc, intra=True, queueident='d', right=False)
@@ -334,6 +337,8 @@ class body: #body definition class for center definition to obtain polar cooridi
             ptpatch+=[self.line_surfinterp(lxdisc[i], dxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downleft)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(lowqueue, dnlines, prevlateral=[], intra=True, right=False), \
             'right':prevline_organize(leftqueue, lnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=True, right=True)})
+        for panlist in paninds:
+            self.paninds+=panlist
         
         #right side, pi to pi/2 patch
         thleft=self.theta_queueident(rightqueue, xspacing=rxdisc, intra=True, queueident='r', right=False)
@@ -343,6 +348,8 @@ class body: #body definition class for center definition to obtain polar cooridi
             ptpatch+=[self.line_surfinterp(dxdisc[i], rxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downright)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(rightqueue, rnlines, prevlateral=[], intra=True, right=False), \
             'right':prevline_organize(lowqueue, dnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)})
+        for panlist in paninds:
+            self.paninds+=panlist
         
         #right side, pi/2 to 0.0 patch
         thleft=self.theta_queueident(upqueue, xspacing=uxdisc, intra=False, queueident='u', right=True)
@@ -352,6 +359,8 @@ class body: #body definition class for center definition to obtain polar cooridi
             ptpatch+=[self.line_surfinterp(rxdisc[i], uxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upright)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(upqueue, unlines, prevlateral=uplat, intra=False, right=True), \
             'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)})
+        for panlist in paninds:
+            self.paninds+=panlist
 
 def circdefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
     #discretization necessities

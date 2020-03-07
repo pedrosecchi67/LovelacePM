@@ -25,11 +25,10 @@ subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
     end do
 end subroutine aicm_lines_gen
 
-subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, haswake, vdv)
+subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, vdv)
     integer, intent(IN) :: nlin, nloc
     real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), solution(1:nlin), S, nvec(1:3)
     integer, intent(IN) :: loclines(1:nloc)
-    logical, intent(IN) :: haswake
     real(8), intent(OUT) :: vdv(3)
 
     integer :: i
@@ -41,12 +40,8 @@ subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, haswak
         Gamma=solution(loclines(i))*(lines(loclines(i), 1:3, 2)-lines(loclines(i), 1:3, 1))
         vdv=vdv+(/Gamma(2)*nvec(3)-Gamma(3)*nvec(2), Gamma(3)*nvec(1)-Gamma(1)*nvec(3), Gamma(1)*nvec(2)-Gamma(2)*nvec(1)/)
     end do
-    
-    if(haswake) then
-        vdv=vdv/((nloc+1)*S)
-    else
-        vdv=vdv/(nloc*S)
-    end if
+
+    vdv=vdv/(nloc*S)
 end subroutine self_influence
 
 subroutine pointarg(point1, point2, arg)
