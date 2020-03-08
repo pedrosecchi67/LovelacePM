@@ -1,9 +1,8 @@
 !FORTRAN 90 subroutines to optimize mathematical operations, currently including:
 ! 1- AIC generation
 ! 2- Calculation of local self-induced velocity based on adjacent lines
-! 3- Calculate derivative of local self-induced velocity by each adjacent line's vorticity
-! 4- Quickly calculate argument in yz plane
-! 5- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
+! 3- Quickly calculate argument in yz plane
+! 4- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
 subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
     integer, intent(IN) :: npan, nlin
     real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), colpoints(1:npan, 1:3)
@@ -44,26 +43,6 @@ subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, vdv)
 
     vdv=vdv/(nloc*S)
 end subroutine self_influence
-
-subroutine self_influence_matrix(nlin, npan, nloc, panind, lines, S, nvec, loclines, selfinf_x, selfinf_y, selfinf_z)
-    integer, intent(IN) :: nlin, npan, nloc, panind
-    real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), S, nvec(1:3)
-    integer, intent(IN) :: loclines(1:nloc)
-    real(8), intent(INOUT) :: selfinf_x(1:npan, 1:nlin), selfinf_y(1:npan, 1:nlin), selfinf_z(1:npan, 1:nlin)
-
-    integer :: i
-    real(8) :: Gamma(3), vdv(3)
-
-    vdv=(/0.0, 0.0, 0.0/)
-
-    do i=1, nloc
-        Gamma=(lines(loclines(i), 1:3, 2)-lines(loclines(i), 1:3, 1))
-        vdv=(/Gamma(2)*nvec(3)-Gamma(3)*nvec(2), Gamma(3)*nvec(1)-Gamma(1)*nvec(3), Gamma(1)*nvec(2)-Gamma(2)*nvec(1)/)/(S*nloc)
-        selfinf_x(panind, loclines(i))=vdv(1)
-        selfinf_y(panind, loclines(i))=vdv(2)
-        selfinf_z(panind, loclines(i))=vdv(3)
-    end do
-end subroutine self_influence_matrix
 
 subroutine pointarg(point1, point2, arg)
     real(8), intent(IN) :: point1(1:3), point2(1:3)
