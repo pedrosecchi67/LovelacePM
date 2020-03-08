@@ -309,33 +309,72 @@ class Solid:
         for i in range(self.npanels):
             for j in range(self.npanels):
                 self.aicm[i, j]=self.aicm3[:, i, j]@self.panels[i].nvector
-    def genvbar(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate freestream velocity vector. Angular velocities are raw (rad/s), not normalized by Uinf or dimensions
+    def gen_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream velocity dependant on parameters
+        newvec=np.zeros((self.npanels, 3))
         for i in range(self.npanels):
-            self.vbar[i, :]=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([-p, q, -r], dtype='double'), self.panels[i].colpoint)
+            newvec[i, :]=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([-p, q, -r], dtype='double'), self.panels[i].colpoint)
+        return newvec
+    def gen_farfield_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #generate generic local freestream velocity dependant on parameters
+        newvec=np.zeros((self.npanels, 3))
+        if par=='a':
+            for i in range(self.npanels):
+                newvec[i, :]=Uinf*np.array([-sin(a)*cos(b), sin(a)*sin(b), cos(a)], dtype='double')
+        elif par=='b':
+            for i in range(self.npanels):
+                newvec[i, :]=Uinf*np.array([-cos(a)*sin(b), -cos(a)*cos(b), 0.0], dtype='double')
+        elif par=='p':
+            for i in range(self.npanels):
+                newvec[i, :]=np.cross(np.array([-1.0, 0.0, 0.0], dtype='double'), self.panels[i].colpoint)
+        elif par=='q':
+            for i in range(self.npanels):
+                newvec[i, :]=np.cross(np.array([0.0, 1.0, 0.0], dtype='double'), self.panels[i].colpoint)
+        elif par=='r':
+            for i in range(self.npanels):
+                newvec[i, :]=np.cross(np.array([0.0, 0.0, -1.0], dtype='double'), self.panels[i].colpoint)
+        return newvec
+    def genvbar(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate freestream velocity vector. Angular velocities are raw (rad/s), not normalized by Uinf or dimensions
+        self.vbar=self.gen_farfield(Uinf, a=a, b=b, p=p, q=q, r=r)
     def gennvv(self): #Generate vector containing normal velocities
         for i in range(self.npanels):
             self.nvv[i]=self.panels[i].nvector@self.vbar[i, :]
-    def gen_selfinf(self): #generate self-influence velocity according to Srivastava's equations
+    def gen_selfinf_mat(self): #generate self-influence matrix according to Srivastava's equations, with each line's vorticity as an input
+        #so as to ease stability derivative calculation
+        self.selfinf_mat_x=np.zeros((self.npanels, self.nlines), order='F')
+        self.selfinf_mat_y=np.zeros((self.npanels, self.nlines), order='F')
+        self.selfinf_mat_z=np.zeros((self.npanels, self.nlines), order='F')
         for i in range(self.npanels):
             linelist=[]
             for l in self.panels[i].lines:
                 if not int(abs(l))-1 in self.panels[i].no_selfinf:
-                    linelist+=[int(abs(l))]
-            self.delphi[i, :]+=toolkit.self_influence(self.lines, self.solution_line, self.panels[i].S, \
-                self.panels[i].nvector, np.array(linelist))
-    def solve(self, damper=0.0): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
+                    linelist+=[int(abs(l))-1]
+            for l in linelist:
+                vdv=np.cross(self.lines[l, :, 1]-self.lines[l, :, 0], self.panels[i].nvector)/(4*self.panels[i].S)
+                self.selfinf_mat_x[i, l]=vdv[0]
+                self.selfinf_mat_y[i, l]=vdv[1]
+                self.selfinf_mat_z[i, l]=vdv[2]
+        self.selfinf_mat_x=sps.csr_matrix(self.selfinf_mat_x)
+        self.selfinf_mat_y=sps.csr_matrix(self.selfinf_mat_y)
+        self.selfinf_mat_z=sps.csr_matrix(self.selfinf_mat_z)
+    def gen_selfinf(self): #generate self-influence velocity according to Srivastava's equations
+        self.delphi[:, 0]+=self.selfinf_mat_x@self.solution_line
+        self.delphi[:, 1]+=self.selfinf_mat_y@self.solution_line
+        self.delphi[:, 2]+=self.selfinf_mat_z@self.solution_line
+    def solve(self, damper=0.0, target=np.array([])): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
         #self.iaicm=toolkit.aicm_inversion(self.aicm, damper)
+        if len(target)==0:
+            target=np.zeros(self.npanels) # target: nvv aimed at, for stability derivative computation and/or viscous-inviscid coupling
 
         if damper!=0.0:
             self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
         else:
             self.iaicm=slg.inv(self.aicm)
-        tango=-self.nvv
+        tango=target-self.nvv
 
         self.solution=self.iaicm@tango
         self.solution_line=self.panline_matrix@self.solution
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
+        self.gen_selfinf_mat()
         self.gen_selfinf()
         self.solavailable=True
     def calcpress(self, Uinf=1.0):
@@ -343,6 +382,15 @@ class Solid:
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
     def calcforces(self): #compute force correspondent to unitary dynamic pressure on each panel
         self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i] for i in range(self.npanels)]
+    def calc_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #calculate local Cp derivative by freestream factor
+        dndksi=self.gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par=par)
+        dGammadksi=-self.iaicm@dndksi
+        dGamma_linedksi=self.panline_matrix@dGammadksi
+        dvdksi=np.zeros((3, self.npanels))
+        dvdksi[0, :]=self.aicm3[0, :, :]@dGammadksi+self.selfinf_mat_x@dGamma_linedksi
+        dvdksi[1, :]=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
+        dvdksi[2, :]=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
+        return -(2*(self.vbar+self.delphi)@dvdksi)/(Uinf**2)
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
@@ -390,7 +438,7 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def eulersolve(self, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True):
+    def eulersolve(self, target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True):
         if echo:
             print('========Euler solution=======')
         t=tm.time()
