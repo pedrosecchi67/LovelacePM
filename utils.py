@@ -11,7 +11,7 @@ import time as tm
 import toolkit
 
 def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
-    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False): #read arfoil data points from Selig format file
+    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False): #read arfoil data points from Selig format file
     if ext_append:
         infile=open(afl+'.dat', 'r')
     else:
@@ -48,14 +48,20 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
         midpoint=(aflpts[-1, :]+aflpts[0, :])/2
         aflpts[-1, :]=midpoint
         aflpts[0, :]=midpoint
-    if not extra_intra:
-        return aflpts
-    else:
+    if extra_intra:
         tipind=np.argmin(aflpts[:, 0])
         extra=aflpts[0:tipind, :]
         intra=aflpts[tipind:np.size(aflpts, 0), :]
         extra=np.flip(extra, axis=0)
         return aflpts, extra, intra
+    if closed:
+        tipind=np.argmin(aflpts[:, 0])
+        extra=aflpts[0:tipind+1, :]
+        intra=aflpts[tipind:np.size(aflpts, 0), :]
+        extra=np.flip(extra, axis=0)
+        camberline=(intra+extra)/2
+        aflpts[:, 1]=np.interp(aflpts[:, 0], camberline[:, 0], camberline[:, 1])
+    return aflpts
 
 def wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0):
     #position airfoil coordinate in 3D axis system

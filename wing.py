@@ -15,10 +15,12 @@ from body import *
 
 class wing_section: #class to define wing section based on airfoil info
     def __init__(self, c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
-        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False):
+        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False):
         self.CA_position=CA_position
+        self.c=c
+        self.closed=closed
         self.points=wing_afl_positprocess(read_afl(afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
-            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse), gamma=gamma, c=c, xpos=CA_position[0], \
+            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy, closed=closed), gamma=gamma, c=c, xpos=CA_position[0], \
                 ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
 
@@ -80,6 +82,10 @@ class wing_quadrant: #wing region between two airfoil sections
         extrasld=[]
         xdisc=int(np.size(self.sect1.points, 0)/2)+1
 
+        #detecting closed extremities
+        closedl=self.sect1.closed
+        closedr=self.sect2.closed
+
         #handling inverted airfoil sections
         if self.sect1.inverted:
             sect1_extraorder=range(np.size(self.sect1.points, 0)-1, xdisc-2, -1)
@@ -131,6 +137,10 @@ class wing_quadrant: #wing region between two airfoil sections
             prev['left']=prevlines['intra_right']
         if 'intra_left' in prevlines:
             prev['right']=prevlines['intra_left']
+        if closedl:
+            prev['right']=self.extraleft_lines
+        if closedr:
+            prev['left']=self.extraright_lines
         horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'])
         self.panstrips_intra=[[paninds[i][j] for i in range(len(paninds))] for j in range(len(paninds[0])-1, -1, -1)]
         for panlist in paninds:
@@ -145,6 +155,13 @@ class wing_quadrant: #wing region between two airfoil sections
         #wake info
         for i in range(len(TE_extra)):
             self.wakecombs+=[[TE_extra[i], TE_intra[i]]]
+    def calc_reference(self, axis=1): #input for wing's calc reference function
+        ys=np.array([self.sect1.CA_position[axis], self.sect2.CA_position[axis]])
+        cs=np.array([self.sect1.c, self.sect2.c])
+        yspacing=np.linspace(ys[0], ys[1], 100)
+        cspacing=np.interp(yspacing, ys, cs)
+        #returns S and parcel for MAC integration
+        return abs(np.trapz(cs, x=ys)), abs(np.trapz(cspacing**2, x=yspacing))
     def close_tip(self, sectside=2):
         if sectside==2:
             extra_paninds=self.panstrips_extra[0]
@@ -299,6 +316,25 @@ class wing:
         self.Cms=self.Cms[order]
         self.Gammas=self.Gammas[order]
         self.coefavailable=True
+    def calc_reference(self): #calculate local MAC, surface and span
+        #identify wing axis (1 or 2)
+        disty=abs(self.wingquads[0].sect1.CA_position[1]-self.wingquads[-1].sect2.CA_position[1])
+        distz=abs(self.wingquads[0].sect1.CA_position[2]-self.wingquads[-1].sect2.CA_position[2])
+        if distz>disty:
+            self.axis=2
+            b=distz
+        else:
+            self.axis=1
+            b=disty
+
+        S=0.0
+        mac=0.0
+        for quad in self.wingquads:
+            Sq, macq=quad.calc_reference(axis=self.axis)
+            S+=Sq
+            mac+=macq
+        mac/=S
+        return S, mac, b
     def close_tip(self, sectside=2):
         if sectside==2:
             self.wingquads[-1].close_tip(sectside=2)

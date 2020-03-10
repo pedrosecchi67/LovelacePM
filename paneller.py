@@ -33,14 +33,12 @@ class Solid:
         self.solavailable=False
         if len(wraparounds)==0:
             wraparounds=[[]]*len(sldlist)
-        horzlines=[]
-        vertlines=[]
         sldcnt=0
         for sld in sldlist: #define first patches (without their interconnections)
             wraps=wraparounds[sldcnt]
             self.addpatch(sld, wraps=wraps)
             sldcnt+=1
-    def addpatch(self, sld, wraps=[], prevlines={}, invlats=[]): #add panel based on point grid (list of lists)
+    def addpatch(self, sld, wraps=[], prevlines={}, invlats=[], tolerance=0.00005): #add panel based on point grid (list of lists)
         # returns: arrays of, respectively, horizontal and vertical line indexes; panel indexes list of lists;
         # point grid inserted as input, for external reference from high-end functions
         # lines provided with -2 index in prevlines will be accounted as new lines, and as -1, 
@@ -56,16 +54,16 @@ class Solid:
                     if prevlines['low'][j]!=-2:
                         horzlines[-1]+=[prevlines['low'][j]]
                     else:
-                        horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T)]
+                        horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T, tolerance=tolerance)]
                 else:
-                    horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T)]
+                    horzlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i][j+1])).T, tolerance=tolerance)]
                 if j==0 and 'right' in prevlines:
                     if prevlines['right'][i]!=-2:
                         vertlines[-1]+=[prevlines['right'][i]]
                     else:
-                        vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T)]
+                        vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T, tolerance=tolerance)]
                 else:
-                    vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T)]
+                    vertlines[-1]+=[self.addline(np.vstack((sld[i][j], sld[i+1][j])).T, tolerance=tolerance)]
         if 0 in wraps: #if wrapped in x direction (inner list layer), repeat the first lateral vertical lines
             for i in range(len(sld)-1):
                 vertlines[i]+=[vertlines[i][0]]
@@ -75,10 +73,10 @@ class Solid:
                     if prevlines['left'][i]!=-2:
                         vertlines[i]+=[prevlines['left'][i]]
                     else:
-                        vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T)]
+                        vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T, tolerance=tolerance)]
             else:
                 for i in range(len(sld)-1):
-                    vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T)]
+                    vertlines[i]+=[self.addline(np.vstack((sld[i][-1], sld[i+1][-1])).T, tolerance=tolerance)]
         horzlines+=[[]]
         if 1 in wraps: #same for y axis
             for i in range(len(sld[0])-1):
@@ -89,10 +87,10 @@ class Solid:
                     if prevlines['up'][i]!=-2:
                         horzlines[-1]+=[prevlines['up'][i]]
                     else:
-                        horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T)]
+                        horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T, tolerance=tolerance)]
             else:
                 for i in range(len(sld[0])-1):
-                    horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T)]
+                    horzlines[-1]+=[self.addline(np.vstack((sld[-1][i], sld[-1][i+1])).T, tolerance=tolerance)]
         for i in range(len(sld)-1):
             paninds+=[[]]
             for j in range(len(sld[0])-1):
@@ -105,7 +103,7 @@ class Solid:
                     l+=[0]
                 if i==len(sld)-2 and 'up' in invlats:
                     l+=[2]
-                paninds[-1]+=[self.addpanel([horzlines[i][j], vertlines[i][j], horzlines[i+1][j], vertlines[i][j+1]], invs=l)]
+                paninds[-1]+=[self.addpanel([horzlines[i][j], vertlines[i][j+1], horzlines[i+1][j], vertlines[i][j]], invs=l)]
         return horzlines, vertlines, paninds, sld
     def addline(self, coords, tolerance=0.00005):
         #neglect lines of neglectible size
@@ -125,7 +123,7 @@ class Solid:
         n=0
         for l in lines:
             if l!=-1:
-                if (n==0 or n==3):
+                if (n==3 or n==2):
                     llist+=[-1-l]
                 else:
                     llist+=[l+1]
@@ -240,7 +238,7 @@ class Solid:
                 for lind in range(len(self.panels[i].lines)):
                     p=self.lines[abs(self.panels[i].lines[lind])-1, :, 0]-self.panels[i].colpoint
                     u=self.lines[abs(self.panels[i].lines[lind])-1, :, 1]-self.lines[abs(self.panels[i].lines[lind])-1, :, 0]
-                    if (u@np.cross(self.panels[i].nvector, p)*self.panels[i].lines[lind]<0.0):
+                    if (u@np.cross(self.panels[i].nvector, p)*self.panels[i].lines[lind]>0.0):
                         self.panels[i].lines[lind]*=-1
                         print('WARNING: line '+str(abs(self.panels[i].lines[lind])-1)+' in panel '+\
                             str(i)+' had to be inverted. Please check integrity of patchcompose() functions')
@@ -255,7 +253,7 @@ class Solid:
             v=coords[:, 2]-coords[:, 1]'''
             u=self.line_getvec(p.lines[0])
             v=self.line_getvec(p.lines[1])
-            p.nvector=np.cross(u, v)
+            p.nvector=np.cross(v, u)
             p.S=0.0
             if len(p.lines)==3:
                 p.S=lg.norm(p.nvector)/2
@@ -285,6 +283,7 @@ class Solid:
         self.solavailable=False
         self.Cps=np.array([0.0]*len(self.panels), dtype='double')
         self.forces=[]
+        self.moments=[]
         #adjust lines in case any is set inconsistently with respect to anti-clockwise convention in panel
         self.lineadjust()
     def gen_panline(self): #generate panel-line correspondence matrix
@@ -331,6 +330,9 @@ class Solid:
         elif par=='r':
             for i in range(self.npanels):
                 newvec[i, :]=np.cross(np.array([0.0, 0.0, -1.0], dtype='double'), self.panels[i].colpoint)
+        elif par=='Uinf':
+            for i in range(self.npanels):
+                newvec[i, :]=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')
         return newvec
     def genvbar(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate freestream velocity vector. Angular velocities are raw (rad/s), not normalized by Uinf or dimensions
         self.vbar=self.gen_farfield(Uinf, a=a, b=b, p=p, q=q, r=r)
@@ -344,11 +346,20 @@ class Solid:
         self.selfinf_mat_z=np.zeros((self.npanels, self.nlines), order='F')
         for i in range(self.npanels):
             linelist=[]
+            nocirc_linelist=[]
             for l in self.panels[i].lines:
                 if not int(abs(l))-1 in self.panels[i].no_selfinf:
                     linelist+=[int(abs(l))-1]
+                else:
+                    nocirc_linelist+=[int(abs(l))-1]
             for l in linelist:
                 vdv=np.cross(self.lines[l, :, 1]-self.lines[l, :, 0], self.panels[i].nvector)/(4*self.panels[i].S)
+                self.selfinf_mat_x[i, l]=vdv[0]
+                self.selfinf_mat_y[i, l]=vdv[1]
+                self.selfinf_mat_z[i, l]=vdv[2]
+            for l in nocirc_linelist:
+                vdv=np.cross(self.lines[l, :, 1]-self.lines[l, :, 0], self.panels[i].nvector)/(4*self.panels[i].S)
+                vdv/=2
                 self.selfinf_mat_x[i, l]=vdv[0]
                 self.selfinf_mat_y[i, l]=vdv[1]
                 self.selfinf_mat_z[i, l]=vdv[2]
@@ -377,20 +388,23 @@ class Solid:
         self.gen_selfinf_mat()
         self.gen_selfinf()
         self.solavailable=True
+        self.calcforces()
     def calcpress(self, Uinf=1.0):
         for i in range(self.npanels):
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
     def calcforces(self): #compute force correspondent to unitary dynamic pressure on each panel
         self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i] for i in range(self.npanels)]
+        self.moments=[np.cross(self.panels[i].colpoint, self.forces[i]) for i in range(self.npanels)]
     def calc_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #calculate local Cp derivative by freestream factor
-        dndksi=self.gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par=par)
+        dvdksi=self.gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par=par)
+        dndksi=np.array([self.panels[i].nvector@dvdksi[i, :] for i in range(self.npanels)])
         dGammadksi=-self.iaicm@dndksi
         dGamma_linedksi=self.panline_matrix@dGammadksi
-        dvdksi=np.zeros((3, self.npanels))
-        dvdksi[0, :]=self.aicm3[0, :, :]@dGammadksi+self.selfinf_mat_x@dGamma_linedksi
-        dvdksi[1, :]=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
-        dvdksi[2, :]=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
-        return -(2*(self.vbar+self.delphi)@dvdksi)/(Uinf**2)
+        dvdksi[:, 0]+=self.aicm3[0, :, :]@dGammadksi+self.selfinf_mat_x@dGamma_linedksi
+        dvdksi[:, 1]+=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
+        dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
+        dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
+        return dCps
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
