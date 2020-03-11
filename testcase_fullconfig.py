@@ -14,7 +14,7 @@ from body import *
 from aircraft import *
 from aerodynamic_output import *
 
-a=-radians(0.0)
+a=radians(0.0)
 Uinf=0.01
 b=1.2
 taper=0.5
@@ -25,12 +25,12 @@ fuselage_width=0.1
 
 sld=Solid()
 
-fig=plt.figure()
-ax=plt.axes(projection='3d')
+'''fig=plt.figure()
+ax=plt.axes(projection='3d')'''
 
 fuselage=standard_body(sld, body_thdisc=100, nose_loc=np.array([-fuselage_aftlen, 0.0, 0.0]))
-fuselage.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
-    ax=ax, fig=fig)
+'''fuselage.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
+    ax=ax, fig=fig)'''
 
 sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20)
 sect2=wing_section(CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20)
@@ -61,33 +61,50 @@ horz_emp=wing(wingquads=[horz_emp_left, horz_emp_right])
 
 horz_emp.patchcompose(ydisc=24)
 
-wing_left.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
+'''wing_left.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
     ax=ax, fig=fig)
 
 wing_right.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
-    ax=ax, fig=fig)
+    ax=ax, fig=fig)'''
 
 fuselage.patchcompose(leftqueue=[wing_left], rightqueue=[wing_right], xdisc=60, \
     thdisc_upleft=5, thdisc_downleft=5, thdisc_downright=5, thdisc_upright=5)
     
-horz_emp.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
+'''horz_emp.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
     ax=ax, fig=fig)
 
-plt.show()
+plt.show()'''
 
 Sref=croot*(1+taper)*(b+fuselage_width)/2
 acft=aircraft(sld, elems=[wing_left, wing_right, fuselage, horz_emp], Sref=Sref, bref=b)
 
-sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+
 #sld.plotnormals(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], factor=0.1)
 #sld.plotnormals(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2], factor=0.1)
 #sld.genwakepanels(wakecombs=wingquad_left.wakecombs+wingquad_right.wakecombs, wakeinds=[[0, 0]], a=a)
 acft.edit_parameters(par='a', val=a)
 acft.addwake()
+sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 acft.eulersolve()
 acft.forces_report()
 acft.stabreport()
-sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+'''
+alphas=np.linspace(0.0, 10.0, 10)
+CLs=np.zeros(len(alphas))
+CDs=np.zeros(len(alphas))
+for i in range(len(alphas)):
+    CLs[i], CDs[i]=calc_ppoint(alphas[i])
+plt.scatter(alphas, CLs)
+plt.show()
+plt.scatter(CLs, CDs)
+plt.show()
+print('Differentiated CLalphas at several AOAs:')
+print(np.gradient(CLs, np.radians(alphas)))
+print('Constant for quadratic polar (differentiated):')
+print(np.gradient(np.gradient(CDs, CLs), CLs)/2)
+'''
+
+'''sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 #sld.plotgeometry(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2])
 print(sld.npanels)
 plot_Cps(sld, elems=[wing_left, wing_right])
@@ -99,4 +116,4 @@ plot_Cps(sld, elems=[horz_emp])
 plot_Cls(sld, wings=[horz_emp])
 plot_Cds(sld, wings=[horz_emp])
 plot_Cms(sld, wings=[horz_emp])
-plot_gammas(sld, wings=[horz_emp])
+plot_gammas(sld, wings=[horz_emp])'''

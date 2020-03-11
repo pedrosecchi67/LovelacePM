@@ -242,12 +242,18 @@ class Solid:
                         self.panels[i].lines[lind]*=-1
                         print('WARNING: line '+str(abs(self.panels[i].lines[lind])-1)+' in panel '+\
                             str(i)+' had to be inverted. Please check integrity of patchcompose() functions')
-    def end_preprocess(self, tolerance=0.00005): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
+    def end_preprocess(self, paninds=[], tolerance=0.00005): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
         #consequences may arise if done otherwise
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
+        #analyse whether provided panel index list corresponds to a certain set or, as default, indicates all panels in self
+        allpans=(len(paninds)==0) or (len(paninds)==self.npanels)
+        if allpans:
+            panlist=self.panels
+        else:
+            panlist=[self.panels[i] for i in paninds]
         n=0
-        for p in self.panels:
+        for p in panlist:
             '''coords=self.panel_getcoords(p)
             u=coords[:, 1]-coords[:, 0]
             v=coords[:, 2]-coords[:, 1]'''
