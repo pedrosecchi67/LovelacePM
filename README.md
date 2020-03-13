@@ -14,9 +14,9 @@ The system requirements defined for the final product are labelled below, along 
 (2) - flexibility of configuration and calculation method definition by the user;
 (3) - higher accuracy and completeness of the analysis performed, in spite of the low-fidelity Euler equation solver that serves as its kernel.
 
-* Performing full configuration analysis of subsonic aircraft in an amount of time that doesn't exceed 50 s per AOA for a 5000-panel mesh; (1) [completed on low-end (Euler solver is ready and capable of proposed performance)]
+* Performing full configuration analysis of subsonic aircraft in an amount of time that doesn't exceed 50 s per AOA for a 5000-panel mesh; (1) [completed for inviscid solution]
 * Performing viscous effect estimations based on viscid-inviscid coupling exclusively with geometry, Mach and Reynolds specifications, accepting custom initial guesses for boundary layer thickness; (2, 3) [not yet implemented]
-* Modelling fuselages, nacelles and engines accurately in terms of euler solution and viscous flow; (3) [not yet completed]
+* Modelling fuselages, nacelles and engines accurately in terms of euler solution and viscous flow; (3) [completed for fuselages]
 * Approximating rotor behaviour through means of geometry and flow information, provided either by previous BEMT or LLT calculations (I. E., recieving local inflow characteristics along the rotor); (3) [not yet implemented]
 * Providing user control over every step of calculations through Python functions so as to make the applied method customized for the user's own research purpose, recurring to precompiled FORTRAN backend for optimal performance only for strictly mathematical steps. (2)
 
