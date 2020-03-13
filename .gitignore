@@ -1,0 +1,7 @@
+*.pyc
+*.gan
+/airfoils
+*.avl
+*.so
+*.bl
+/__pycache

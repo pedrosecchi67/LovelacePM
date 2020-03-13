@@ -45,9 +45,6 @@ wingquad_right=wing_quadrant(sld, sect1=sect3, sect2=sect4)
 wing_left=wing(wingquads=[wingquad_left])
 wing_right=wing(wingquads=[wingquad_right])
 
-wing_right.patchcompose(ydisc=20, ystrategy=lambda x: x)#lambda x: (np.sin(pi*x-pi/2)+1)/2)
-wing_left.patchcompose(ydisc=20, ystrategy=lambda x: x)#lambda x: (np.sin(pi*x-pi/2)+1)/2)
-
 wing_right.trim_bybody(fuselage, sectside=1)
 wing_left.trim_bybody(fuselage, sectside=2)
 
@@ -59,7 +56,12 @@ horz_emp_left=wing_quadrant(sld, sect1=stabsect1, sect2=stabsect2)
 horz_emp_right=wing_quadrant(sld, sect1=stabsect2, sect2=stabsect3)
 horz_emp=wing(wingquads=[horz_emp_left, horz_emp_right])
 
+Sref=croot*(1+taper)*(b+fuselage_width)/2
+acft=aircraft(sld, elems=[wing_left, wing_right, fuselage, horz_emp], Sref=Sref, bref=b)
+
 horz_emp.patchcompose(ydisc=24)
+wing_right.patchcompose(ydisc=20, ystrategy=lambda x: x)#lambda x: (np.sin(pi*x-pi/2)+1)/2)
+wing_left.patchcompose(ydisc=20, ystrategy=lambda x: x)#lambda x: (np.sin(pi*x-pi/2)+1)/2)
 
 '''wing_left.plot_input(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], \
     ax=ax, fig=fig)
@@ -74,9 +76,6 @@ fuselage.patchcompose(leftqueue=[wing_left], rightqueue=[wing_right], xdisc=60, 
     ax=ax, fig=fig)
 
 plt.show()'''
-
-Sref=croot*(1+taper)*(b+fuselage_width)/2
-acft=aircraft(sld, elems=[wing_left, wing_right, fuselage, horz_emp], Sref=Sref, bref=b)
 
 
 #sld.plotnormals(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], factor=0.1)
@@ -104,7 +103,7 @@ print('Constant for quadratic polar (differentiated):')
 print(np.gradient(np.gradient(CDs, CLs), CLs)/2)
 '''
 
-'''sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 #sld.plotgeometry(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2])
 print(sld.npanels)
 plot_Cps(sld, elems=[wing_left, wing_right])
@@ -116,4 +115,4 @@ plot_Cps(sld, elems=[horz_emp])
 plot_Cls(sld, wings=[horz_emp])
 plot_Cds(sld, wings=[horz_emp])
 plot_Cms(sld, wings=[horz_emp])
-plot_gammas(sld, wings=[horz_emp])'''
+plot_gammas(sld, wings=[horz_emp])

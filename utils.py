@@ -11,7 +11,8 @@ import time as tm
 import toolkit
 
 def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
-    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False): #read arfoil data points from Selig format file
+    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False):
+    #read arfoil data points from Selig format file
     if ext_append:
         infile=open(afl+'.dat', 'r')
     else:
@@ -31,13 +32,13 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
             R=R.T
         aflpts=(R@(aflpts.T)).T/cos(incidence)
     if disc!=0:
+        xpts=strategy(np.linspace(1.0, 0.0, disc))
         leading_edge_ind=np.argmin(aflpts[:, 0])
         extra=aflpts[0:leading_edge_ind, :]
         intra=aflpts[leading_edge_ind:np.size(aflpts, 0), :]
-        xpts=strategy(np.linspace(1.0, 0.0, disc))
         extracs=CubicSpline(np.flip(extra[:, 0]), np.flip(extra[:, 1]))
         extra=np.vstack((xpts, extracs(xpts))).T
-        xpts=strategy(np.linspace(0.0, 1.0, disc))
+        xpts=np.flip(xpts)
         intracs=CubicSpline(intra[:, 0], intra[:, 1])
         intra=np.vstack((xpts, intracs(xpts))).T
         aflpts=np.vstack((extra, intra[1:np.size(intra, 0), :]))
@@ -73,8 +74,8 @@ def wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0):
     return aflnew
 
 def trimlist(n, l): #trim list to defined length based on first element. For input handling
-    while(len(l)<n):
-        l+=[l[0]]
+    if (len(l)<n) and len(l)!=0:
+        l+=[l[0]]*(n-len(l))
     return l
 
 def trim_polars(th):

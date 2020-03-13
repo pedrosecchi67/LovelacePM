@@ -20,44 +20,29 @@ from wing import *
 '''ROLLPOINT() DIRECTION: IF P2 IS THE RIGHTMOST POINT, THE FLAP IN QUESTION WILL ROTATE DOWNWARDS (POSITIVE DEFLECTION)
 WHEN FUNCTION IS SUMMONED ON THE FLAP'S POINTS'''
 
-class control: #control object to be summoned directly by the user
-    def __init__(self, multiplier=1.0):
-        self.multiplier=1.0
+def z_rotation_matrix(th):
+    return np.array([[cos(th), sin(th), 0.0], [-sin(th), cos(th), 0.0], [0.0, 0.0, 1.0]])
+
+class control_DOF: #control object to be summoned directly by the user
+    def __init__(self):
+        #ought to be embedded into aircraft class
         self.state=0.0
 
 class control_axis: #definition of control axis with functions to rotate points around it
-    def __init__(self, sld, p1=np.array([0.0, 0.0, 0.0]), p2=np.array([0.0, 1.0, 0.0]), control_DOF=None):
-        self.sld=sld
-        self.p0=p1
-        self.p1=p2
-        u=p2-p1
-        nu=lg.norm(u)
-        self.Mtosys=np.zeros((3, 3))
-        self.Mtosys[2, :]=u/nu
-        self.Mtosys[0, :]=np.array([1.0, 0.0, 0.0]) #LIMITATION: dont add a control axis in the x direction or too close to it
-        self.Mtosys[0, :]-=self.Mtosys[2, :]*(self.Mtosys[0, :]@self.Mtosys[2, :])
-        self.Mtosys[0, :]/=lg.norm(self.Mtosys[0, :])
-        self.Mtosys[1, :]=np.cross(self.Mtosys[2, :], self.Mtosys[0, :])
-        self.Mtouni=self.Mtosys.T
-        self.Rmat=lambda th: np.array([[cos(th), sin(th), 0.0], [-sin(th), cos(th), 0.0], [0.0, 0.0, 1.0]])
-        if control_DOF==None:
-            print('WARNING: control object absent or set as None')
-            self.delta=0.0
-        else:
-            self.delta=control_DOF.state*control_DOF.multiplier
-        self.control_DOF=control_DOF
-    def update_control(self, linelist=[], paninds=[]): #linelist contains line indexes in self.sld
-        #paninds indicates the panel indexes representing the panels which will have to be updated
-        d_delta=self.control_DOF.state*self.control_DOF.multiplier-self.delta
-        self.delta+=d_delta
-        for l in linelist:
-            if self.belongs(self.sld.linelist[l, :, 0]):
-                self.sld.linelist[l, :, 0]=self.rollpoint(self.sld.linelist[l, :, 0], d_delta)
-            if self.belongs(self.sld.linelist[l, :, 1]):
-                self.sld.linelist[l, :, 1]=self.rollpoint(self.sld.linelist[l, :, 1], d_delta)
-        #update panel info for deformed panels
-        self.sld.end_preprocess(paninds=paninds)
-    def rollpoint(self, p, th):
-        return self.Mtouni@(self.Rmat(th)@(self.Mtosys@(p-self.p0)))+self.p0
-    def belongs(self, p):
-        return (p[0]>(np.interp(p[1], np.array([self.p0[1], self.p1[1]]), np.array([self.p0[0], self.p1[0]]))))
+    #ought to be programmed to be into wing section class
+    #to de defined and set before patchcomposing
+    def __init__(self, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0])):
+        Mtouni=np.zeros((3, 3))
+        Mtouni[:, 2]=p1-p0
+        Mtouni[:, 2]/=lg.norm(Mtouni[:, 2])
+        Mtouni[:, 0]=np.array([1.0, 0.0, 0.0])
+        Mtouni[:, 0]-=Mtouni[:, 2]*(Mtouni[:, 2]@Mtouni[:, 0])
+        Mtouni[:, 0]/=lg.norm(Mtouni[:, 0])
+        Mtouni[:, 1]=np.cross(Mtouni[:, 2], Mtouni[:, 0])
+        self.control_rot_func=lambda pt, th: Mtouni@(z_rotation_matrix(-th)@(Mtouni.T@(pt-p0)))+p0
+
+class control: #main control class, to be summoned attached to a control_DOF instance ran inside aircraft class instance
+    def __init__(self, DOF=None, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0]), multiplier=1.0):
+        self.DOF=DOF
+        self.axis=self.axis=control_axis(p0=p0, p1=p1)
+        self.multiplier=multiplier

@@ -12,28 +12,110 @@ import time as tm
 import toolkit
 from utils import *
 from body import *
+from control import *
 
 class wing_section: #class to define wing section based on airfoil info
     def __init__(self, c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
         header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False):
+        #closed: return camberline as set of points. for closing wings
+        #control axpercs: axis percentage of chord position
         self.CA_position=CA_position
         self.c=c
         self.closed=closed
         self.points=wing_afl_positprocess(read_afl(afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
-            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy, closed=closed), gamma=gamma, c=c, xpos=CA_position[0], \
-                ypos=CA_position[1], zpos=CA_position[2])
+            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy, closed=closed), \
+                gamma=gamma, c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
+    def addcontrols(self, controls=[], control_multipliers=[], control_axpercs=[]):
+        if not self.hascontrol():
+            self.controls=controls
+            inlen=0
+        else:
+            inlen=len(self.controls)
+            self.controls+=controls
+        if len(control_multipliers)==0:
+            control_multipliers=[1.0]
+        trimlist(len(controls), control_multipliers)
+        try:
+            trimlist(len(controls), control_axpercs)
+        except:
+            control_axpercs=[0.75]
+            print('WARNING: control axis position absent. Using 0.75 instead.')
+            trimlist(len(controls), control_axpercs)
+        self.control_multipliers=control_multipliers
+        #list to contain the indexes of points to be rotated by each panel's deflection
+        self.control_ptinds=[]
+        for i in range(len(self.controls)):
+            self.control_ptinds+=[[]]
+            inds=np.argwhere(self.points[:, 0]>control_axpercs[i]*self.c+self.CA_position[0]-self.c/4)
+            for ptind in [index[0] for index in inds]:
+                self.control_ptinds[-1]+=[ptind]
+        return list(range(inlen, len(self.controls)))
+    def hascontrol(self):
+        return hasattr(self, 'controls')
+    def getinthick(self, eta, x): #get point in x, at thickness percentage eta
+        LE_ind=np.argmin(self.points[:, 0])
+        extra=self.points[0:LE_ind+1, :]
+        intra=self.points[np.arange(np.size(self.points, axis=0)-1, LE_ind-1, -1), :]
+        intrapty=np.interp(x, intra[:, 0], intra[:, 1])
+        intraptz=np.interp(x, intra[:, 0], intra[:, 2])
+        extrapty=np.interp(x, extra[:, 0], extra[:, 1])
+        extraptz=np.interp(x, extra[:, 0], extra[:, 2])
+        return np.array([x, eta*extrapty+(1.0-eta)*intrapty, eta*extraptz+(1.0-eta)*intraptz])
+    def applycontrols(self, ths, control_inds):
+        if type(ths)!=list:
+            ths=[ths]
+        trimlist(len(control_inds), ths)
+        points=self.points
+        for i in control_inds:
+            for ptind in self.control_ptinds[i]:
+                pt=np.reshape(points[ptind, :], (3))
+                points[ptind, :]=self.controls[i].axis.control_rot_func(pt, self.controls[i].multiplier*ths[i])
+        return points
 
 class wing_quadrant: #wing region between two airfoil sections
-    def __init__(self, sld, sect1=None, sect2=None):
+    def __init__(self, sld, sect1=None, sect2=None, control_names=[], control_axpercs_x=[], control_axpercs_thickness=[], \
+        control_multipliers=[]):
         #by convention, set section 1 as the rightmost section in the quadrant (positive in y axis)
         #vertical fins should have sect1 as their upmost section
+        #control_axperc_thickness: list of lists. in sublist, respectively, left and right section percentage of thickness for axis.
+        #same with cotrol_axpercs_x
         self.sld=sld
         self.sect1=sect1
         self.sect2=sect2
         self.wakecomb=[]
         self.panstrips_extra=[]
         self.panstrips_intra=[]
+        self.acft=None
+        if len(control_names)!=0:
+            self.controls={}
+            if len(control_axpercs_x)==0:
+                control_axpercs_x=[[0.75, 0.75]]
+                print('WARNING: no control percentage of chord provided for wing quadrant constructor. 0.75 used instead by default.')
+            if len(control_axpercs_thickness)==0:
+                control_axpercs_thickness=[[0.5, 0.5]]
+                print('WARNING: no control percentage of thickness provided for wing quadrant constructor. 0.5 used instead by default.')
+            if len(control_multipliers)==0:
+                control_multipliers=[1.0]
+            trimlist(len(control_names), control_axpercs_x)
+            trimlist(len(control_names), control_axpercs_thickness)
+            trimlist(len(control_names), control_multipliers)
+            for i in range(len(control_names)):
+                xax1=np.interp(control_axpercs_x[i][0], np.array([0.0, 1.0]), np.array([self.sect1.CA_position[0]-self.sect1.c/4, \
+                    self.sect1.CA_position[0]+3*self.sect1.c/4]))
+                pax1=self.sect1.getinthick(xax1, control_axpercs_thickness[i][0])
+                xax2=np.interp(control_axpercs_x[i][1], np.array([0.0, 1.0]), np.array([self.sect2.CA_position[0]-self.sect2.c/4, \
+                    self.sect2.CA_position[0]+3*self.sect2.c/4]))
+                pax2=self.sect2.getinthick(xax2, control_axpercs_thickness[i][1])
+                self.controls[control_names[i]]=control(p0=pax1, p1=pax2, multiplier=control_multipliers[i])
+            self.sect1_control_indlist=self.sect1.addcontrols(controls=[self.controls[k] for k in self.controls], \
+                control_multipliers=[control_multipliers[i] for i in range(len(control_names))], \
+                    control_axpercs=[control_axpercs_x[i][0] for i in range(len(control_names))])
+            self.sect2_control_indlist=self.sect2.addcontrols(controls=[self.controls[k] for k in self.controls], \
+                control_multipliers=[control_multipliers[i] for i in range(len(control_names))], \
+                    control_axpercs=[control_axpercs_x[i][1] for i in range(len(control_names))])
+    def set_aircraft(self, acft):
+        self.acft=acft #define aircraft structure related to instance
     def trim_bybody(self, contactbody, sectside=2, tolerance=0.00005):
         #trim wing section by body contact, for abutment
         if sectside==2:
@@ -43,7 +125,7 @@ class wing_quadrant: #wing region between two airfoil sections
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
                 self.sect2.points[i, :]=newpt
                 if errorcode:
-                    print('An error has been detected while performing abutments. Please check geometry.')
+                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible.')
         else:
             ps=self.sect2.points
             us=self.sect1.points-self.sect2.points
@@ -51,7 +133,7 @@ class wing_quadrant: #wing region between two airfoil sections
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
                 self.sect1.points[i, :]=newpt
                 if errorcode:
-                    print('An error has been detected while performing abutments. Please check geometry.')
+                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible.')
     def plot_input(self, fig=None, ax=None, show=False, xlim=[], \
         ylim=[], zlim=[], colour='blue'): #plot input geometry data
         if fig==None:
@@ -75,9 +157,14 @@ class wing_quadrant: #wing region between two airfoil sections
             ax.set_zlim3d(zlim[0], zlim[1])
         if show:
             plt.show()
+    def hascontrol(self): #call to wing_section.hascontrol()
+        return hasattr(self, 'controls')
     def patchcompose(self, prevlines={}, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, ldisc=20):
+        #controlset:
+        #variable including all control DOFs in aircraft object
         #code for prevlines: 'intra_left', 'intra_right', 'extra_...
         #and wing quadrant patch additions
+        controlset=self.acft.controlset
         lspacing=strategy(np.linspace(0.0, 1.0, ldisc))
         extrasld=[]
         xdisc=int(np.size(self.sect1.points, 0)/2)+1
@@ -100,10 +187,20 @@ class wing_quadrant: #wing region between two airfoil sections
             sect2_intraorder=range(np.size(self.sect2.points, 0)-1, xdisc-2, -1)
             sect2_extraorder=range(xdisc)
 
+        if self.hascontrol(): #this ought to be changed to patch for controlled sections
+            ths=[]
+            for name in self.controls:
+                ths+=[controlset[name].state]
+            s1points=self.sect1.applycontrols(ths, self.sect1_control_indlist)
+            s2points=self.sect2.applycontrols(ths, self.sect2_control_indlist)
+        else:
+            s1points=self.sect1.points
+            s2points=self.sect2.points
+        
         for i in range(xdisc):
             extrasld+=[[]]
             for eta in lspacing:
-                extrasld[-1]+=[eta*self.sect1.points[sect1_extraorder[i], :]+(1.0-eta)*self.sect2.points[sect2_extraorder[i], :]]
+                extrasld[-1]+=[eta*s1points[sect1_extraorder[i], :]+(1.0-eta)*s2points[sect2_extraorder[i], :]]
         intrasld=[]
         for i in range(xdisc):
             intrasld+=[[]]
@@ -112,6 +209,35 @@ class wing_quadrant: #wing region between two airfoil sections
         
         #wake info
         self.wakecombs=[]
+
+        #update prevlines to not include points belonging to controls
+        controlpts1=[]
+        for i in self.sect1_control_indlist:
+            controlpts1+=self.sect1.control_ptinds[i]
+        controlpts1=set(controlpts1)
+        controlpts2=[]
+        for i in self.sect2_control_indlist:
+            controlpts2+=self.sect2.control_ptinds[i]
+        controlpts2=set(controlpts2)
+        sect1_xdisc=np.size(self.sect1.points, axis=0)
+        sect2_xdisc=np.size(self.sect2.points, axis=0)
+        
+        if 'extra_left' in prevlines:
+            for l in range(len(prevlines['extra_left'])):
+                if l in controlpts1 or l-1 in controlpts1:
+                    prevlines['extra_left'][l]=-2
+        if 'intra_left' in prevlines:
+            for l in range(len(prevlines['intra_left'])):
+                if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts1:
+                    prevlines['intra_left'][l]=-2
+        if 'extra_right' in prevlines:
+            for l in range(len(prevlines['extra_right'])):
+                if l in controlpts2 or l-1 in controlpts2:
+                    prevlines['extra_right'][l]=-2
+        if 'intra_right' in prevlines:
+            for l in range(len(prevlines['intra_right'])):
+                if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                    prevlines['intra_right'][l]=-2
         
         prev={}
         if 'extra_right' in prevlines:
@@ -151,6 +277,34 @@ class wing_quadrant: #wing region between two airfoil sections
         self.intraright_points=[points[i][-1] for i in range(len(points))]
         self.intraleft_lines=[vertlines[i][0] for i in range(len(vertlines))]
         self.intraleft_points=[points[i][0] for i in range(len(points))]
+
+        #clean points and lines list from control region
+        if self.hascontrol():
+            for i in range(len(self.extraleft_points)):
+                if i in controlpts1:
+                    self.extraleft_points[i]=self.sect1.points[i, :]
+            for i in range(len(self.intraleft_points)):
+                if sect1_xdisc-i-1 in controlpts1:
+                    self.intraleft_points[i]=self.sect1.points[sect1_xdisc-i-1, :]
+            for i in range(len(self.extraright_points)):
+                if i in controlpts2:
+                    self.extraright_points[i]=self.sect2.points[i, :]
+            for i in range(len(self.intraright_points)):
+                if sect2_xdisc-i-1 in controlpts2:
+                    self.intraright_points[i]=self.sect2.points[sect2_xdisc-i-1, :]
+            
+            for l in range(len(self.extraleft_lines)):
+                if l in controlpts1 or l-1 in controlpts1:
+                    self.extraleft_lines[l]=-2
+            for l in range(len(self.intraleft_lines)):
+                if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts2:
+                    self.intraleft_lines[l]=-2
+            for l in range(len(self.extraright_lines)):
+                if l in controlpts2 or l-1 in controlpts2:
+                    self.extraright_lines[l]=-2
+            for l in range(len(self.intraright_lines)):
+                if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                    self.intraright_lines[l]=-2
 
         #wake info
         for i in range(len(TE_extra)):
@@ -247,6 +401,10 @@ class wing_quadrant: #wing region between two airfoil sections
 
 
 class wing:
+    def set_aircraft(self, acft):
+        self.acft=acft #define aircraft structure related to instance
+        for wngqd in self.wingquads:
+            wngqd.set_aircraft(acft)
     def __init__(self, wingquads=[]):
         self.coefavailable=False
         self.wingquads=wingquads

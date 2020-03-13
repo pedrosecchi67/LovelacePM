@@ -18,6 +18,7 @@ from body import *
 from wing import *
 
 class aircraft: #class to ease certain case studies for full aircraft
+    #generate aircraft BEFORE patchcompose functions
     def parameter_report(self):
         print('Freestream parameters:')
         print('%10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf'))
@@ -34,6 +35,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.wings=[]
         self.bodies=[]
         for e in elems:
+            e.set_aircraft(self)
             if type(e)==wing:
                 self.wings+=[e]
             elif type(e)==body:
@@ -66,6 +68,16 @@ class aircraft: #class to ease certain case studies for full aircraft
 
         if echo:
             self.parameter_report()
+        
+        #defining available controls
+        self.controlset={}
+        for wng in self.wings:
+            for wngqd in wng.wingquads:
+                if wngqd.hascontrol():
+                    for cname in wngqd.controls:
+                        if not cname in self.controlset:
+                            self.controlset[cname]=control_DOF()
+                            wngqd.controls[cname].DOF=self.controlset[cname]
 
         self.sld=sld
         self.forcesavailable=False
@@ -73,12 +85,27 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.massavailable=False
 
         #defining plotting limits
-        xmax=np.amax(self.sld.lines[:, 0, :])
-        xmin=np.amin(self.sld.lines[:, 0, :])
-        ymax=np.amax(self.sld.lines[:, 1, :])
-        ymin=np.amin(self.sld.lines[:, 1, :])
-        zmax=np.amax(self.sld.lines[:, 2, :])
-        zmin=np.amin(self.sld.lines[:, 2, :])
+        xkeypts=[]
+        ykeypts=[]
+        zkeypts=[]
+        for wng in self.wings:
+            for wngqd in wng.wingquads:
+                xkeypts+=[wngqd.sect1.CA_position[0]-wngqd.sect1.c/4, wngqd.sect1.CA_position[0]+3*wngqd.sect1.c/4, \
+                    wngqd.sect2.CA_position[0]-wngqd.sect2.c/4, wngqd.sect2.CA_position[0]+3*wngqd.sect2.c/4]
+                ykeypts+=[wngqd.sect1.CA_position[1], wngqd.sect2.CA_position[1]]
+                zkeypts+=[wngqd.sect1.CA_position[2], wngqd.sect2.CA_position[2]]
+        for bdy in self.bodies:
+            xkeypts+=[bdy.sections[i].center[0] for i in range(len(bdy.sections))]
+            ykeypts+=[bdy.sections[i].center[1]-bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
+            zkeypts+=[bdy.sections[i].center[2]-bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
+            ykeypts+=[bdy.sections[i].center[1]+bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
+            zkeypts+=[bdy.sections[i].center[2]+bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
+        xmax=max(xkeypts)
+        xmin=min(xkeypts)
+        ymax=max(ykeypts)
+        ymin=min(ykeypts)
+        zmax=max(zkeypts)
+        zmin=min(zkeypts)
         self.plotlim=max([abs(xmax), abs(ymax), abs(zmax), abs(xmin), abs(ymin), abs(zmin)])
     def addwake(self, offset=1000.0):
         #once the wake has been added, one can end geometry pre-processing of panels in question:

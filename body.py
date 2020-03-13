@@ -74,6 +74,8 @@ def prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False):
 class body: #body definition class for center definition to obtain polar cooridinates and creation of input panels 
     #for abutments.
     #to be abutted stern to bow, clockwise when seen from the aircraft's bow
+    def set_aircraft(self, acft):
+        self.acft=acft #define aircraft structure related to instance
     def __init__(self, sld, sections=[], tolerance=0.00005, cubic=True):
         self.sld=sld
         self.tolerance=tolerance
