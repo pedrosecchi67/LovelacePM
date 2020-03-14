@@ -23,7 +23,7 @@ class wing_section: #class to define wing section based on airfoil info
         self.c=c
         self.closed=closed
         self.points=wing_afl_positprocess(read_afl(afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
-            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy, closed=closed), \
+            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy), \
                 gamma=gamma, c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
     def addcontrols(self, controls=[], control_multipliers=[], control_axpercs=[]):
@@ -53,7 +53,7 @@ class wing_section: #class to define wing section based on airfoil info
         return list(range(inlen, len(self.controls)))
     def hascontrol(self):
         return hasattr(self, 'controls')
-    def getinthick(self, eta, x): #get point in x, at thickness percentage eta
+    def getinthick(self, eta=0.5, x=0.0): #get point in x, at thickness percentage eta
         LE_ind=np.argmin(self.points[:, 0])
         extra=self.points[0:LE_ind+1, :]
         intra=self.points[np.arange(np.size(self.points, axis=0)-1, LE_ind-1, -1), :]
@@ -66,7 +66,7 @@ class wing_section: #class to define wing section based on airfoil info
         if type(ths)!=list:
             ths=[ths]
         trimlist(len(control_inds), ths)
-        points=self.points
+        points=np.array(list(self.points))
         for i in control_inds:
             for ptind in self.control_ptinds[i]:
                 pt=np.reshape(points[ptind, :], (3))
@@ -103,10 +103,10 @@ class wing_quadrant: #wing region between two airfoil sections
             for i in range(len(control_names)):
                 xax1=np.interp(control_axpercs_x[i][0], np.array([0.0, 1.0]), np.array([self.sect1.CA_position[0]-self.sect1.c/4, \
                     self.sect1.CA_position[0]+3*self.sect1.c/4]))
-                pax1=self.sect1.getinthick(xax1, control_axpercs_thickness[i][0])
+                pax1=self.sect1.getinthick(x=xax1, eta=control_axpercs_thickness[i][0])
                 xax2=np.interp(control_axpercs_x[i][1], np.array([0.0, 1.0]), np.array([self.sect2.CA_position[0]-self.sect2.c/4, \
                     self.sect2.CA_position[0]+3*self.sect2.c/4]))
-                pax2=self.sect2.getinthick(xax2, control_axpercs_thickness[i][1])
+                pax2=self.sect2.getinthick(x=xax2, eta=control_axpercs_thickness[i][1])
                 self.controls[control_names[i]]=control(p0=pax1, p1=pax2, multiplier=control_multipliers[i])
             self.sect1_control_indlist=self.sect1.addcontrols(controls=[self.controls[k] for k in self.controls], \
                 control_multipliers=[control_multipliers[i] for i in range(len(control_names))], \
@@ -205,39 +205,42 @@ class wing_quadrant: #wing region between two airfoil sections
         for i in range(xdisc):
             intrasld+=[[]]
             for eta in lspacing:
-                intrasld[-1]+=[eta*self.sect2.points[sect2_intraorder[i], :]+(1.0-eta)*self.sect1.points[sect1_intraorder[i], :]]
+                intrasld[-1]+=[eta*s2points[sect2_intraorder[i], :]+(1.0-eta)*s1points[sect1_intraorder[i], :]]
         
         #wake info
         self.wakecombs=[]
 
         #update prevlines to not include points belonging to controls
         controlpts1=[]
-        for i in self.sect1_control_indlist:
-            controlpts1+=self.sect1.control_ptinds[i]
+        if self.hascontrol():
+            for i in self.sect1_control_indlist:
+                controlpts1+=self.sect1.control_ptinds[i]
         controlpts1=set(controlpts1)
         controlpts2=[]
-        for i in self.sect2_control_indlist:
-            controlpts2+=self.sect2.control_ptinds[i]
+        if self.hascontrol():
+            for i in self.sect2_control_indlist:
+                controlpts2+=self.sect2.control_ptinds[i]
         controlpts2=set(controlpts2)
         sect1_xdisc=np.size(self.sect1.points, axis=0)
         sect2_xdisc=np.size(self.sect2.points, axis=0)
         
-        if 'extra_left' in prevlines:
-            for l in range(len(prevlines['extra_left'])):
-                if l in controlpts1 or l-1 in controlpts1:
-                    prevlines['extra_left'][l]=-2
-        if 'intra_left' in prevlines:
-            for l in range(len(prevlines['intra_left'])):
-                if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts1:
-                    prevlines['intra_left'][l]=-2
-        if 'extra_right' in prevlines:
-            for l in range(len(prevlines['extra_right'])):
-                if l in controlpts2 or l-1 in controlpts2:
-                    prevlines['extra_right'][l]=-2
-        if 'intra_right' in prevlines:
-            for l in range(len(prevlines['intra_right'])):
-                if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
-                    prevlines['intra_right'][l]=-2
+        if self.hascontrol():
+            if 'extra_left' in prevlines:
+                for l in range(len(prevlines['extra_left'])):
+                    if l in controlpts1 or l-1 in controlpts1:
+                        prevlines['extra_left'][l]=-2
+            if 'intra_left' in prevlines:
+                for l in range(len(prevlines['intra_left'])):
+                    if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts1:
+                        prevlines['intra_left'][l]=-2
+            if 'extra_right' in prevlines:
+                for l in range(len(prevlines['extra_right'])):
+                    if l in controlpts2 or l-1 in controlpts2:
+                        prevlines['extra_right'][l]=-2
+            if 'intra_right' in prevlines:
+                for l in range(len(prevlines['intra_right'])):
+                    if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                        prevlines['intra_right'][l]=-2
         
         prev={}
         if 'extra_right' in prevlines:
@@ -249,6 +252,7 @@ class wing_quadrant: #wing region between two airfoil sections
         self.paninds=[]
         for panlist in paninds:
             self.paninds+=panlist
+        extra_paninds=paninds
         TE_extra=paninds[0] #for wake generation
         self.extraright_lines=[vertlines[i][0] for i in range(len(vertlines))]
         self.extraright_points=[points[i][0] for i in range(len(points))]
@@ -263,14 +267,11 @@ class wing_quadrant: #wing region between two airfoil sections
             prev['left']=prevlines['intra_right']
         if 'intra_left' in prevlines:
             prev['right']=prevlines['intra_left']
-        if closedl:
-            prev['right']=self.extraleft_lines
-        if closedr:
-            prev['left']=self.extraright_lines
         horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'])
         self.panstrips_intra=[[paninds[i][j] for i in range(len(paninds))] for j in range(len(paninds[0])-1, -1, -1)]
         for panlist in paninds:
             self.paninds+=panlist
+        intra_paninds=paninds
         TE_intra=paninds[0]
         TE_intra.reverse() #for wake generation
         self.intraright_lines=[vertlines[i][-1] for i in range(len(vertlines))]
@@ -295,20 +296,30 @@ class wing_quadrant: #wing region between two airfoil sections
             
             for l in range(len(self.extraleft_lines)):
                 if l in controlpts1 or l-1 in controlpts1:
+                    self.sld.panels[extra_paninds[l][-1]].nocirc_enforce(self.extraleft_lines[l]) #avoid excessive circulation from open control surfaces
                     self.extraleft_lines[l]=-2
             for l in range(len(self.intraleft_lines)):
                 if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts2:
+                    self.sld.panels[intra_paninds[l][0]].nocirc_enforce(self.intraleft_lines[l]) #avoid excessive circulation from open control surfaces
                     self.intraleft_lines[l]=-2
             for l in range(len(self.extraright_lines)):
                 if l in controlpts2 or l-1 in controlpts2:
+                    self.sld.panels[extra_paninds[l][0]].nocirc_enforce(self.extraright_lines[l]) #avoid excessive circulation from open control surfaces
                     self.extraright_lines[l]=-2
             for l in range(len(self.intraright_lines)):
                 if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                    self.sld.panels[intra_paninds[l][-1]].nocirc_enforce(self.intraright_lines[l]) #avoid excessive circulation from open control surfaces
                     self.intraright_lines[l]=-2
 
         #wake info
         for i in range(len(TE_extra)):
             self.wakecombs+=[[TE_extra[i], TE_intra[i]]]
+        
+        #closing tips
+        if closedl:
+            self.close_tip(sectside=1)
+        if closedr:
+            self.close_tip(sectside=2)
     def calc_reference(self, axis=1): #input for wing's calc reference function
         ys=np.array([self.sect1.CA_position[axis], self.sect2.CA_position[axis]])
         cs=np.array([self.sect1.c, self.sect2.c])
@@ -320,17 +331,21 @@ class wing_quadrant: #wing region between two airfoil sections
         if sectside==2:
             extra_paninds=self.panstrips_extra[0]
             for i in range(len(extra_paninds)):
-                self.sld.panels[extra_paninds[i]].nocirc_enforce(self.extraright_lines[i])
+                if self.extraright_lines[i]!=-2:
+                    self.sld.panels[extra_paninds[i]].nocirc_enforce(self.extraright_lines[i])
             intra_paninds=self.panstrips_intra[0]
             for i in range(len(intra_paninds)):
-                self.sld.panels[intra_paninds[i]].nocirc_enforce(self.intraright_lines[i])
+                if self.intraright_lines[i]!=-2:
+                    self.sld.panels[intra_paninds[i]].nocirc_enforce(self.intraright_lines[i])
         else:
             extra_paninds=self.panstrips_extra[-1]
             for i in range(len(extra_paninds)):
-                self.sld.panels[extra_paninds[i]].nocirc_enforce(self.extraleft_lines[i])
+                if self.extraleft_lines[i]!=-2:
+                    self.sld.panels[extra_paninds[i]].nocirc_enforce(self.extraleft_lines[i])
             intra_paninds=self.panstrips_intra[-1]
             for i in range(len(intra_paninds)):
-                self.sld.panels[intra_paninds[i]].nocirc_enforce(self.intraleft_lines[i])
+                if self.intraleft_lines[i]!=-2:
+                    self.sld.panels[intra_paninds[i]].nocirc_enforce(self.intraleft_lines[i])
     def calc_coefs(self, alpha=0.0, axis=1): #calculate local sectional coefficients
         if axis==1: #calculate unitary, streamwise direction vectors
             u=np.array([cos(alpha), 0.0, sin(alpha)])

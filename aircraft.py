@@ -22,10 +22,19 @@ class aircraft: #class to ease certain case studies for full aircraft
     def parameter_report(self):
         print('Freestream parameters:')
         print('%10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf'))
-        print('%10f %10f %10f %10f %10f %10f' % (self.a, self.b, self.p, self.q, self.r, self.Uinf))
+        print('%10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf))
         print('Geometry parameters:')
         print('%10s %10s %10s' % ('Sref', 'cref', 'bref'))
         print('%10f %10f %10f' % (self.Sref, self.cref, self.bref))
+        if self.hascontrol():
+            print('Control parameters:')
+            controlnames_str=''
+            controlvals_str=''
+            for cname in self.controlset:
+                controlnames_str+='%10s' % cname
+                controlvals_str+='%10f' % degrees(self.controlset[cname].state)
+            print(controlnames_str)
+            print(controlvals_str)
         '''if self.massavailable:
             print('Mass parameters not yet present')
         else:
@@ -65,9 +74,6 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.q=0.0
         self.r=0.0
         self.Uinf=1.0
-
-        if echo:
-            self.parameter_report()
         
         #defining available controls
         self.controlset={}
@@ -78,6 +84,9 @@ class aircraft: #class to ease certain case studies for full aircraft
                         if not cname in self.controlset:
                             self.controlset[cname]=control_DOF()
                             wngqd.controls[cname].DOF=self.controlset[cname]
+
+        if echo:
+            self.parameter_report()
 
         self.sld=sld
         self.forcesavailable=False
@@ -107,6 +116,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         zmax=max(zkeypts)
         zmin=min(zkeypts)
         self.plotlim=max([abs(xmax), abs(ymax), abs(zmax), abs(xmin), abs(ymin), abs(zmin)])
+    def hascontrol(self):
+        return len(self.controlset)!=0
     def addwake(self, offset=1000.0):
         #once the wake has been added, one can end geometry pre-processing of panels in question:
         self.sld.end_preprocess()
@@ -157,19 +168,23 @@ class aircraft: #class to ease certain case studies for full aircraft
             print('%5s | %10f %10f %10f %10f %10f %10f %10f %10f' % (p, self.stabderivative_dict[p]['dCX'], self.stabderivative_dict[p]['dCY'], \
                 self.stabderivative_dict[p]['dCZ'], self.stabderivative_dict[p]['dCL'], self.stabderivative_dict[p]['dCD'], self.stabderivative_dict[p]['dCl'], \
                     self.stabderivative_dict[p]['dCm'], self.stabderivative_dict[p]['dCn']))
-    def edit_parameters(self, par='a', val=0.0):
-        if par=='a':
-            self.a=val
-        elif par=='b':
-            self.b=val
-        elif par=='p':
-            self.p=val
-        elif par=='q':
-            self.q=val
-        elif par=='r':
-            self.r=val
-        elif par=='Uinf':
-            self.Uinf=val
+    def edit_parameters(self, pardict):
+        for par in pardict:
+            val=pardict[par]
+            if par=='a':
+                self.a=radians(val)
+            elif par=='b':
+                self.b=radians(val)
+            elif par=='p':
+                self.p=val
+            elif par=='q':
+                self.q=val
+            elif par=='r':
+                self.r=val
+            elif par=='Uinf':
+                self.Uinf=val
+            else:
+                self.controlset[par].state=radians(val)
         #reset result readiness
         self.stabavailable=False
         self.forcesavailable=False

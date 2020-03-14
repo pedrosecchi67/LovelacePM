@@ -46,3 +46,6 @@ class control: #main control class, to be summoned attached to a control_DOF ins
         self.DOF=DOF
         self.axis=self.axis=control_axis(p0=p0, p1=p1)
         self.multiplier=multiplier
+        self.paninds=[]
+    def addpanels(panlist):
+        self.paninds+=panlist
