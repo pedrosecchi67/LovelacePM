@@ -16,7 +16,8 @@ from control import *
 
 class wing_section: #class to define wing section based on airfoil info
     def __init__(self, c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
-        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False):
+        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False, \
+            correction=None, Re=2e6):
         #closed: return camberline as set of points. for closing wings
         #control axpercs: axis percentage of chord position
         self.CA_position=CA_position
@@ -26,6 +27,13 @@ class wing_section: #class to define wing section based on airfoil info
             remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy), \
                 gamma=gamma, c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
+        self.correction=None
+        if self.hascorrection():
+            self.getcorrection(Re=Re)
+    def hascorrection(self): #check whether or not external polar is fed to post-processor
+        return self.correction!=None
+    def getcorrection(self, Re=2e6):
+        self.alphas, self.Cls, self.Cds, self.Cms=self.correction(Re=Re)
     def addcontrols(self, controls=[], control_multipliers=[], control_axpercs=[]):
         if not self.hascontrol():
             self.controls=controls
@@ -408,9 +416,6 @@ class wing_quadrant: #wing region between two airfoil sections
         ys=np.array(ys)
         cs=np.array(cs)
         Gammas=np.array(Gammas)
-        '''Cls=np.gradient(Cls, ys)
-        Cms=np.gradient(Cms, ys)
-        Cds=np.gradient(Cds, ys)'''
 
         return ys, cs, Cls, Cds, Cms, Gammas
 

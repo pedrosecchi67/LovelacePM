@@ -30,7 +30,7 @@ def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True,
         aflname=name
     file_exists=os.path.exists(aflname)
     alphas=np.linspace(aseq[0], aseq[1], aseq[2])
-    Cls=np.zeros(np.shape(alphas))
+    Cls=2*pi*np.radians(alphas)
     Cds=np.zeros(np.shape(alphas))
     Cms=np.zeros(np.shape(alphas))
     if file_exists:
@@ -81,7 +81,7 @@ def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True,
     return alphas, Cls, Cds, Cms
 
 class polar_correction:
-    def __init__(self, name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300):
+    def __init__(self, name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
         self.Re_low=Re_low
         self.Re_high=Re_high
         self.alphas_Re_low, self.Cls_Re_low, self.Cds_Re_low, self.Cms_Re_low=polar_data(name=name, ext_append=ext_append, \
@@ -90,6 +90,8 @@ class polar_correction:
             aseq=aseq, Re=Re_high, M=Mach, visc=True, iter=iter)
         self.alphas_inviscid, self.Cls_inviscid, self.Cds_inviscid, self.Cms_inviscid=polar_data(name=name, ext_append=ext_append, \
             aseq=aseq, M=Mach, visc=False, iter=iter)
+        if len(name)!=0:
+            self.create_functions(cubic=cubic)
     def dump(self, poldir='polars', polname='n4412', ext_append=True, echo=True): #dump to file
         fname=poldir+'/'+polname
         if ext_append:
@@ -124,27 +126,37 @@ class polar_correction:
                 print(str(self.alphas_Re_high[i])+' '+str(self.Cls_Re_high[i])+' '+\
                     str(self.Cds_Re_high[i])+' '+str(self.Cms_Re_high[i])+'\n')
         file.close()
-    def call(self, Re=2e6, cubic=True):
-        eta=np.interp(Re, np.array([self.Re_low, self.Re_high]), np.array([0.0, 1.0]))
+    def create_functions(self, cubic=True):
+        self.alphas_fun=sinterp.CubicSpline(self.Cls_inviscid, self.alphas_inviscid)
+        Cls_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cls_inviscid)
+        Cls_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cls_inviscid)
+        Cds_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cds_inviscid)
+        Cds_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cds_inviscid)
+        Cms_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cms_inviscid)
+        Cms_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cms_inviscid)
         if cubic:
-            alphas=sinterp.CubicSpline(self.Cls_inviscid, self.alphas_inviscid)
-            Cls_inviscid=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cls_inviscid)
-            Cds_inviscid=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cds_inviscid)
-            Cms_inviscid=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cms_inviscid)
-            Cls=sinterp.CubicSpline(Cls_inviscid, self.Cls_Re_low*(1.0-eta)+self.Cls_Re_high*eta)
-            Cds=sinterp.CubicSpline(Cls_inviscid, (self.Cds_Re_low-Cds_inviscid)*(1.0-eta)+(self.Cds_Re_high-Cds_inviscid)*eta)
-            Cms=sinterp.CubicSpline(Cls_inviscid, (self.Cms_Re_low-Cms_inviscid)*(1.0-eta)+(self.Cms_Re_high-Cms_inviscid)*eta)
+            self.Cls_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cls_Re_low)
+            self.Cls_Re_high_fun=sinterp.CubicSpline(Cls_inviscid_Re_high, self.Cls_Re_high)
+            self.Cds_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cds_Re_low-Cds_inviscid_Re_low)
+            self.Cds_Re_high_fun=sinterp.CubicSpline(Cls_inviscid_Re_high, self.Cds_Re_high-Cds_inviscid_Re_high)
+            self.Cms_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cms_Re_low-Cms_inviscid_Re_low)
+            self.Cms_Re_high_fun=sinterp.CubicSpline(Cls_inviscid_Re_high, self.Cms_Re_high-Cms_inviscid_Re_high)
         else:
-            alphas=sinterp.interp1d(self.Cls_inviscid, self.alphas_inviscid)
-            Cds_inviscid=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cds_inviscid)
-            Cls_inviscid=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cls_inviscid)
-            Cms_inviscid=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cms_inviscid)
-            Cls=sinterp.interp1d(Cls_inviscid, self.Cls_Re_low*(1.0-eta)+self.Cls_Re_high*eta)
-            Cds=sinterp.interp1d(Cls_inviscid, (self.Cds_Re_low-Cds_inviscid)*(1.0-eta)+(self.Cds_Re_high-Cds_inviscid)*eta)
-            Cms=sinterp.interp1d(Cls_inviscid, (self.Cms_Re_low-Cms_inviscid)*(1.0-eta)+(self.Cms_Re_high-Cms_inviscid)*eta)
+            self.Cls_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cls_Re_low)
+            self.Cls_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cls_Re_high)
+            self.Cds_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cds_Re_low-Cds_inviscid_Re_low)
+            self.Cds_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cds_Re_high-Cds_inviscid_Re_high)
+            self.Cms_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cms_Re_low-Cms_inviscid_Re_low)
+            self.Cms_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cms_Re_high-Cms_inviscid_Re_high)
+    def call(self, Re=2e6): #return fitting functions for a given Reynolds number
+        eta=np.interp(Re, np.array([self.Re_low, self.Re_high]), np.array([0.0, 1.0]))
+        alphas=lambda Cl: self.alphas_fun(Cl)
+        Cls=lambda Cl: self.Cls_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cls_Re_high_fun(Cl)
+        Cds=lambda Cl: self.Cds_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cds_Re_high_fun(Cl)
+        Cms=lambda Cl: self.Cms_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cms_Re_high_fun(Cl)
         return alphas, Cls, Cds, Cms
 
-def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True): #read polars from dumped file
+def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cubic=True): #read polars from dumped file
     newpolar=polar_correction(name='')
     fname=poldir+'/'+polname
     if ext_append:
@@ -209,6 +221,7 @@ def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True): #r
             print(all_lines[i])
     already_read+=nrehigh
     file.close()
+    newpolar.create_functions(cubic=cubic)
     return newpolar
 
 plr=read_polar()
