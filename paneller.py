@@ -288,6 +288,7 @@ class Solid:
         self.solution=np.array([0.0]*len(self.panels), dtype='double')
         self.solavailable=False
         self.Cps=np.array([0.0]*len(self.panels), dtype='double')
+        self.Cfs=np.zeros(len(self.panels), dtype='double')
         self.forces=[]
         self.moments=[]
         #adjust lines in case any is set inconsistently with respect to anti-clockwise convention in panel
@@ -399,7 +400,8 @@ class Solid:
         for i in range(self.npanels):
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
     def calcforces(self): #compute force correspondent to unitary dynamic pressure on each panel
-        self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i] for i in range(self.npanels)]
+        self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i]+self.panels[i].S*self.Cfs[i]*\
+            (self.vbar[i, :]+self.delphi[i, :])/lg.norm(self.vbar[i, :]+self.delphi[i, :]) for i in range(self.npanels)]
         self.moments=[np.cross(self.panels[i].colpoint, self.forces[i]) for i in range(self.npanels)]
     def calc_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #calculate local Cp derivative by freestream factor
         dvdksi=self.gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par=par)

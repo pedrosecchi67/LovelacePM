@@ -19,6 +19,8 @@ import threading
 import subprocess as sub
 import platform as plat
 
+''' Xfoil automation to temporarily supply the absense of a parallel, estimative boundary layer solver '''
+
 def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None):
     #flap variable: [x_hinge, y_hinge, deflection(angles)]. aseq: same input as required for xfoil command
     if os.path.exists('temppolar.plr'):
@@ -148,7 +150,7 @@ class polar_correction:
             self.Cds_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cds_Re_high-Cds_inviscid_Re_high)
             self.Cms_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cms_Re_low-Cms_inviscid_Re_low)
             self.Cms_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cms_Re_high-Cms_inviscid_Re_high)
-    def call(self, Re=2e6): #return fitting functions for a given Reynolds number
+    def __call__(self, Re=2e6): #return fitting functions for a given Reynolds number
         eta=np.interp(Re, np.array([self.Re_low, self.Re_high]), np.array([0.0, 1.0]))
         alphas=lambda Cl: self.alphas_fun(Cl)
         Cls=lambda Cl: self.Cls_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cls_Re_high_fun(Cl)
@@ -223,6 +225,3 @@ def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cub
     file.close()
     newpolar.create_functions(cubic=cubic)
     return newpolar
-
-plr=read_polar()
-print(vars(plr))

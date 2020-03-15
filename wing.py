@@ -27,7 +27,7 @@ class wing_section: #class to define wing section based on airfoil info
             remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy), \
                 gamma=gamma, c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
-        self.correction=None
+        self.correction=correction
         if self.hascorrection():
             self.getcorrection(Re=Re)
     def hascorrection(self): #check whether or not external polar is fed to post-processor
@@ -367,22 +367,22 @@ class wing_quadrant: #wing region between two airfoil sections
             perpaxis=1
         else:
             print('WARNING: error in axis provided to wingquad.calc_coefs()')
-        ys=[]
-        cs=[]
+        self.ys=[]
+        self.cs=[]
         CA_posits=[]
-        Cls=[]
-        Cms=[]
-        Cds=[]
-        Gammas=[]
+        self.Cls=[]
+        self.Cms=[]
+        self.Cds=[]
+        self.Gammas=[]
         for i in range(len(self.panstrips_extra)):
             xposits=np.array([self.sld.panels[pind].colpoint[0] for pind in self.panstrips_extra[i]])
             yposits=np.array([self.sld.panels[pind].colpoint[axis] for pind in self.panstrips_extra[i]])
             aftextreme=min(xposits)
             rearextreme=max(xposits)
-            cs+=[rearextreme-aftextreme]
-            ys+=[np.mean(yposits)]
-            CA_posits+=[np.array([rearextreme/4+3*aftextreme/4, ys[-1], \
-                np.interp(ys[-1], np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), \
+            self.cs+=[rearextreme-aftextreme]
+            self.ys+=[np.mean(yposits)]
+            CA_posits+=[np.array([rearextreme/4+3*aftextreme/4, self.ys[-1], \
+                np.interp(self.ys[-1], np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), \
                     np.array([self.sect1.CA_position[2], self.sect2.CA_position[2]]))])]
             extracps=np.array([self.sld.Cps[pind] for pind in self.panstrips_extra[i]])
             intracps=np.array([self.sld.Cps[pind] for pind in self.panstrips_intra[i]])
@@ -394,7 +394,7 @@ class wing_quadrant: #wing region between two airfoil sections
             extranv=np.array([self.sld.panels[pind].nvector@v for pind in self.panstrips_extra[i]])
             intranu=np.array([self.sld.panels[pind].nvector@u for pind in self.panstrips_intra[i]])
             intranv=np.array([self.sld.panels[pind].nvector@v for pind in self.panstrips_intra[i]])
-            Cls+=[(np.trapz(extracps*extranv, x=extrax)+np.trapz(intracps*intranv, x=intrax))/cs[-1]]
+            self.Cls+=[(np.trapz(extracps*extranv, x=extrax)+np.trapz(intracps*intranv, x=intrax))/self.cs[-1]]
             circulation=0.0
             gamma_loc=np.zeros(len(self.panstrips_extra[i]))
             for j in range(len(gamma_loc)):
@@ -407,18 +407,49 @@ class wing_quadrant: #wing region between two airfoil sections
                 vloc-=ax*(vloc@ax)
                 gamma_loc[j]=lg.norm(vloc)
             circulation-=np.trapz(gamma_loc*intranv, x=intrax)
-            Gammas+=[circulation]
-            Cds+=[(np.trapz(extracps*extranu, x=extrax)+np.trapz(intracps*intranu, x=intrax))/cs[-1]]
-            Cms+=[-(np.trapz(extracps*extranv*extrax, x=extrax)+np.trapz(intracps*intranv*intrax, x=intrax))/cs[-1]**2]
-        Cls=np.array(Cls)
-        Cds=np.array(Cds)
-        Cms=np.array(Cms)
-        ys=np.array(ys)
-        cs=np.array(cs)
-        Gammas=np.array(Gammas)
+            self.Gammas+=[circulation]
+            self.Cds+=[(np.trapz(extracps*extranu, x=extrax)+np.trapz(intracps*intranu, x=intrax))/self.cs[-1]]
+            self.Cms+=[-(np.trapz(extracps*extranv*extrax, x=extrax)+np.trapz(intracps*intranv*intrax, x=intrax))/self.cs[-1]**2]
+        self.Cls=np.array(self.Cls)
+        self.Cds=np.array(self.Cds)
+        self.Cms=np.array(self.Cms)
+        self.ys=np.array(self.ys)
+        self.cs=np.array(self.cs)
+        self.Gammas=np.array(self.Gammas)
 
-        return ys, cs, Cls, Cds, Cms, Gammas
-
+        if self.hascorrection: #apply viscous correction from external polars
+            eta=np.interp(self.ys, np.array([self.sect1.CA_position[perpaxis], self.sect2.CA_position[perpaxis]]), np.array([0.0, 1.0]))
+            self.Cls_corrected=np.array([self.sect1.Cls(self.Cls[i])*(1.0-eta[i])+eta[i]*self.sect2.Cls(self.Cls[i]) for i in range(len(eta))])
+            self.Cds_corrected=np.array([self.sect1.Cds(self.Cls[i])*(1.0-eta[i])+eta[i]*self.sect2.Cds(self.Cls[i]) for i in range(len(eta))])+self.Cds
+            self.Cms_corrected=np.array([self.sect1.Cms(self.Cls[i])*(1.0-eta[i])+eta[i]*self.sect2.Cms(self.Cls[i]) for i in range(len(eta))])+self.Cms
+        
+        self.perpaxis=perpaxis
+    def hascorrection(self):
+        return self.sect1.hascorrection() and self.sect2.hascorrection()
+    def calc_corrected_forces(self): #returns Ceta (for generic parameter eta) considering external polar corrections in coefficients
+        perpvec=np.cross(np.array([1.0, 0.0, 0.0]), self.sect2.CA_position-self.sect1.CA_position)
+        perpvec/=lg.norm(perpvec)
+        parvec=self.sect2.CA_position-self.sect1.CA_position
+        parvec/=lg.norm(parvec)
+        xposit=np.interp(self.ys, np.array([self.sect1.CA_position[self.perpaxis], self.sect2.CA_position[self.perpaxis]]), \
+            np.array([self.sect1.CA_position[0], self.sect2.CA_position[0]]))
+        yposit=np.interp(self.ys, np.array([self.sect1.CA_position[self.perpaxis], self.sect2.CA_position[self.perpaxis]]), \
+            np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]))
+        zposit=np.interp(self.ys, np.array([self.sect1.CA_position[self.perpaxis], self.sect2.CA_position[self.perpaxis]]), \
+            np.array([self.sect1.CA_position[2], self.sect2.CA_position[2]]))
+        dCX=0.0; dCY=0.0; dCZ=0.0; dCl=0.0; dCm=0.0; dCn=0.0
+        dmom=np.zeros((len(self.ys), 3))
+        dforc=np.zeros((len(self.ys), 3))
+        for i in range(len(self.ys)):
+            dforc[i, :]=perpvec*self.cs[i]*(self.Cls[i]-self.Cls_corrected[i])+np.array([1.0, 0.0, 0.0])*self.cs[i]*(self.Cds[i]-self.Cds_corrected[i])
+            dmom[i, :]=np.cross(np.array([xposit[i], yposit[i], zposit[i]]), dforc[i, :])+(self.cs[i]**2)*(self.Cms[i]-self.Cms_corrected[i])*parvec
+        dCX=np.trapz(dforc[:, 0], x=self.ys)/self.acft.Sref
+        dCY=np.trapz(dforc[:, 1], x=self.ys)/self.acft.Sref
+        dCZ=np.trapz(dforc[:, 2], x=self.ys)/self.acft.Sref
+        dCl=np.trapz(dmom[:, 0], x=self.ys)/(self.acft.Sref*self.acft.bref)
+        dCm=np.trapz(dmom[:, 1], x=self.ys)/(self.acft.Sref*self.acft.cref)
+        dCn=np.trapz(dmom[:, 2], x=self.ys)/(self.acft.Sref*self.acft.bref)
+        return dCX, dCY, dCZ, dCl, dCm, dCn
 
 class wing:
     def set_aircraft(self, acft):
@@ -430,6 +461,8 @@ class wing:
         self.wingquads=wingquads
         self.leftclosed=False
         self.rightclosed=False
+        axial_vec=wingquads[0].sect1.CA_position-wingquads[-1].sect2.CA_position
+        self.axis=np.argmax(np.abs(axial_vec[1:3]))+1
     def patchcompose(self, ystrategy=lambda x: x, ydisc=20):
         if type(ydisc)==list: #use as list if list is provided, specifying each of the quadrants
             trimlist(len(self.wingquads), ydisc)
@@ -478,14 +511,25 @@ class wing:
         self.Cds=np.array([])
         self.Cms=np.array([])
         self.Gammas=np.array([])
+        if any([wngqd.hascorrection() for wngqd in self.wingquads]):
+            self.Cls_corrected=np.array([])
+            self.Cds_corrected=np.array([])
+            self.Cms_corrected=np.array([])
+            self.plotcorrections=True
+        else:
+            self.plotcorrections=False
         for quad in self.wingquads:
-            y, c, Cl, Cd, Cm, Gamma=quad.calc_coefs(alpha=alpha, axis=axis)
-            self.ys=np.hstack((self.ys, y))
-            self.Cls=np.hstack((self.Cls, Cl))
-            self.Cds=np.hstack((self.Cds, Cd))
-            self.Cms=np.hstack((self.Cms, Cm))
-            self.cs=np.hstack((self.cs, c))
-            self.Gammas=np.hstack((self.Gammas, Gamma))
+            quad.calc_coefs(alpha=alpha, axis=axis)
+            self.ys=np.hstack((self.ys, quad.ys))
+            self.Cls=np.hstack((self.Cls, quad.Cls))
+            self.Cds=np.hstack((self.Cds, quad.Cds))
+            self.Cms=np.hstack((self.Cms, quad.Cms))
+            self.cs=np.hstack((self.cs, quad.cs))
+            self.Gammas=np.hstack((self.Gammas, quad.Gammas))
+            if self.plotcorrections:
+                self.Cls_corrected=np.hstack((self.Cls_corrected, quad.Cls_corrected))
+                self.Cds_corrected=np.hstack((self.Cds_corrected, quad.Cds_corrected))
+                self.Cms_corrected=np.hstack((self.Cms_corrected, quad.Cms_corrected))
         order=np.argsort(self.ys)
         self.ys=self.ys[order]
         self.cs=self.cs[order]
@@ -493,6 +537,10 @@ class wing:
         self.Cds=self.Cds[order]
         self.Cms=self.Cms[order]
         self.Gammas=self.Gammas[order]
+        if self.plotcorrections:
+            self.Cls_corrected=self.Cls_corrected[order]
+            self.Cds_corrected=self.Cds_corrected[order]
+            self.Cms_corrected=self.Cms_corrected[order]
         self.coefavailable=True
     def calc_reference(self): #calculate local MAC, surface and span
         #identify wing axis (1 or 2)
@@ -541,3 +589,16 @@ class wing:
     def genwakepanels(self, offset=1000.0, a=0.0, b=0.0):
         for quad in self.wingquads:
             quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=[[0, 0]], a=a, b=b)
+    def hascorrection(self):
+        return any([wngqd.hascorrection() for wngqd in self.wingquads])
+    def calc_corrected_forces(self): #compose correction forces from each wing quadrant
+        dCX=0.0; dCY=0.0; dCZ=0.0; dCl=0.0; dCm=0.0; dCn=0.0
+        for wngqd in self.wingquads:
+            dCX_quad, dCY_quad, dCZ_quad, dCl_quad, dCm_quad, dCn_quad=wngqd.calc_corrected_forces()
+            dCX+=dCX_quad
+            dCY+=dCY_quad
+            dCZ+=dCZ_quad
+            dCl+=dCl_quad
+            dCm+=dCm_quad
+            dCn+=dCn_quad
+        return dCX, dCY, dCZ, dCl, dCm, dCn

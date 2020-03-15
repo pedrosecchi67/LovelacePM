@@ -92,6 +92,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.forcesavailable=False
         self.stabavailable=False
         self.massavailable=False
+        self.hascorrections=any([wng.hascorrection() for wng in self.wings])
 
         #defining plotting limits
         xkeypts=[]
@@ -132,14 +133,31 @@ class aircraft: #class to ease certain case studies for full aircraft
         adforces=np.array([self.CX, self.CY, self.CZ])
         self.CL=v@adforces
         self.CD=u@adforces
-        self.Cl=sum([self.sld.moments[i][0] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
+        self.Cl=sum([self.sld.moments[i][0] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
         self.Cm=sum([self.sld.moments[i][1] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
-        self.Cn=sum([self.sld.moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
+        self.Cn=sum([self.sld.moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
+
+        if self.hascorrections:
+            self.dCX=0.0; self.dCY=0.0; self.dCZ=0.0; self.dCL=0.0; self.dCD=0.0; self.dCl=0.0; self.dCm=0.0; self.dCn=0.0
+            for wng in self.wings:
+                wng.calc_coefs(alpha=self.a, axis=wng.axis)
+                if wng.hascorrection():
+                    dCX_wng, dCY_wng, dCZ_wng, dCl_wng, dCm_wng, dCn_wng=wng.calc_corrected_forces()
+                    self.dCX+=dCX_wng
+                    self.dCY+=dCY_wng
+                    self.dCZ+=dCZ_wng
+                    self.dCl+=dCl_wng
+                    self.dCm+=dCm_wng
+                    self.dCn+=dCn_wng
+            adforces=np.array([self.dCX, self.dCY, self.dCZ])
+            self.dCL=adforces@v
+            self.dCD=adforces@u
+        
         if echo:
             self.forces_report()
     def calcstab(self, echo=True):
         #calculate variation on Cps in respect to several parameters
-        pars=['Uinf', 'a', 'b', 'p', 'q', 'r']
+        pars=['a', 'b', 'p', 'q', 'r']
         self.stabderivative_dict={}
         for p in pars:
             dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p, q=self.q, r=self.r, par=p)
@@ -153,9 +171,9 @@ class aircraft: #class to ease certain case studies for full aircraft
             adforces=np.array([dCX, dCY, dCZ])
             dCL=v@adforces
             dCD=u@adforces
-            dCl=sum([moments[i][0] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
+            dCl=sum([moments[i][0] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
             dCm=sum([moments[i][1] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
-            dCn=sum([moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
+            dCn=sum([moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
             self.stabderivative_dict[p]={'dCX':dCX, 'dCY':dCY, 'dCZ':dCZ, 'dCL':dCL, 'dCD':dCD, 'dCl':dCl, 'dCm':dCm, 'dCn':dCn}
         self.stabavailable=True
         if echo:
@@ -163,6 +181,7 @@ class aircraft: #class to ease certain case studies for full aircraft
     def stabreport(self): #report calculated stability derivatives, or calculate them in place
         if not self.stabavailable:
             self.calcstab(echo=False)
+        print('Stability derivatives')
         print('%5s | %10s %10s %10s %10s %10s %10s %10s %10s' % ('par', 'dCX', 'dCY', 'dCZ', 'dCL', 'dCD', 'dCl', 'dCm', 'dCn'))
         for p in self.stabderivative_dict:
             print('%5s | %10f %10f %10f %10f %10f %10f %10f %10f' % (p, self.stabderivative_dict[p]['dCX'], self.stabderivative_dict[p]['dCY'], \
@@ -189,12 +208,22 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.stabavailable=False
         self.forcesavailable=False
         self.parameter_report()
+    def bodies_eqflatplate_apply(self, rho=1.225, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
+        for bdy in self.bodies:
+            bdy.apply_eqflatplate(rho=rho, nu=nu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0):
         self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p, q=self.q, r=self.r, damper=damper, Uinf=self.Uinf, echo=True)
     def forces_report(self):
         print('========Total Forces Report========')
+        if self.hascorrections:
+            print('Inviscid case: ')
         if not self.forcesavailable:
             self.calcforces(echo=False)
         print('%10s %10s %10s %10s %10s %10s | %10s %10s' % ('CX', 'CY', 'CZ', 'Cl', 'Cm', 'Cn', 'CL', 'CD'))
         print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX, self.CY, self.CZ, self.Cl, self.Cm, self.Cn, self.CL, self.CD))
+        if self.hascorrections:
+            print('After viscous external polar corrections: ')
+            print('%10s %10s %10s %10s %10s %10s | %10s %10s' % ('CX', 'CY', 'CZ', 'Cl', 'Cm', 'Cn', 'CL', 'CD'))
+            print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX+self.dCX, self.CY+self.dCY, self.CZ+self.dCZ, \
+                self.Cl+self.dCl, self.Cm+self.dCm, self.Cn+self.dCn, self.CL+self.dCL, self.CD+self.dCD))
         print('===================================')

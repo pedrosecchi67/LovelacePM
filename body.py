@@ -15,6 +15,18 @@ from utils import *
 
 from paneller import *
 
+#turbulence criterion for flat plate equivalence in parasite drag estimation
+def Re2e6(Re):
+    return Re>2e6
+
+#Blausius's solution laminar friction coefficient
+def Blausius_Cf_l(Re):
+    return 0.664/sqrt(Re)
+
+#Prandtl's one-seventh power law for tubulent boundary layer friction coefficient
+def Prandtl_1_7th(Re):
+    return 0.027/(Re**(1.0/7))
+
 #class to define functions and variables needed to represent body sections
 class body_section:
     def __init__(self, center=np.array([0.0, 0.0, 0.0]), coords=np.vstack((np.sin(np.linspace(0.0, 2*pi, 360)), \
@@ -363,6 +375,14 @@ class body: #body definition class for center definition to obtain polar cooridi
             'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)})
         for panlist in paninds:
             self.paninds+=panlist
+    def apply_eqflatplate(self, rho=1.225, Uinf=1.0, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
+        #all rule parameters should be provided as a function of the local Reynolds number
+        for p in self.paninds:
+            local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/nu
+            if turbulent_criterion(local_Re):
+                self.sld.Cfs[p]=Cf_t_rule(local_Re)
+            else:
+                self.sld.Cfs[p]=Cf_l_rule(local_Re)
 
 def circdefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
     #discretization necessities
