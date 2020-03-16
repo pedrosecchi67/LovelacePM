@@ -24,8 +24,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         print('%10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf'))
         print('%10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf))
         print('Geometry parameters:')
-        print('%10s %10s %10s' % ('Sref', 'cref', 'bref'))
-        print('%10f %10f %10f' % (self.Sref, self.cref, self.bref))
+        print('%10s %10s %10s %10s' % ('Sref', 'cref', 'bref', 'AR'))
+        print('%10f %10f %10f %10f' % (self.Sref, self.cref, self.bref, self.AR))
         if self.hascontrol():
             print('Control parameters:')
             controlnames_str=''
@@ -67,6 +67,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             self.bref=b
         else:
             self.bref=bref
+        self.AR=(self.bref**2)/self.Sref
 
         self.a=0.0
         self.b=0.0
@@ -152,15 +153,27 @@ class aircraft: #class to ease certain case studies for full aircraft
             adforces=np.array([self.dCX, self.dCY, self.dCZ])
             self.dCL=adforces@v
             self.dCD=adforces@u
-        
+
         if echo:
             self.forces_report()
+    def freestream_derivative(self, par='a'): #definition of derivative of freestream velocity vectors u and v (normal vectors)
+        if par=='a':
+            du=np.array([-sin(self.a)*cos(self.b), -sin(self.b)*sin(self.a), cos(self.a)])
+            dv=np.array([-cos(self.a)*cos(self.b), -sin(self.b)*cos(self.a), -sin(self.a)])
+        elif par=='b':
+            du=np.array([-cos(self.a)*sin(self.b), cos(self.b)*cos(self.a), 0.0])
+            dv=np.array([sin(self.a)*sin(self.b), -cos(self.b)*sin(self.a), 0.0])
+        else:
+            du=np.zeros(3)
+            dv=np.zeros(3)
+        return du, dv
     def calcstab(self, echo=True):
         #calculate variation on Cps in respect to several parameters
         pars=['a', 'b', 'p', 'q', 'r']
         self.stabderivative_dict={}
+        orforces=np.array([self.CX, self.CY, self.CZ])
         for p in pars:
-            dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p, q=self.q, r=self.r, par=p)
+            dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p*2*self.bref*self.Uinf, q=self.q*self.cref*2*self.Uinf, r=self.r*self.bref*2*self.Uinf, par=p)
             forces=[-dCps[i]*self.sld.panels[i].S*self.sld.panels[i].nvector for i in range(self.sld.npanels)]
             moments=[np.cross(self.sld.panels[i].colpoint, forces[i]) for i in range(self.sld.npanels)]
             dCX=sum([forces[i][0] for i in range(self.sld.npanels)])/self.Sref
@@ -169,8 +182,9 @@ class aircraft: #class to ease certain case studies for full aircraft
             u=np.array([cos(self.a)*cos(self.b), sin(self.b)*cos(self.a), sin(self.a)])
             v=np.array([-sin(self.a)*cos(self.b), -sin(self.b)*sin(self.a), cos(self.a)])
             adforces=np.array([dCX, dCY, dCZ])
-            dCL=v@adforces
-            dCD=u@adforces
+            du, dv=self.freestream_derivative(par=p)
+            dCL=v@adforces+orforces@dv
+            dCD=u@adforces+orforces@du
             dCl=sum([moments[i][0] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
             dCm=sum([moments[i][1] for i in range(self.sld.npanels)])/(self.Sref*self.cref)
             dCn=sum([moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
@@ -207,16 +221,23 @@ class aircraft: #class to ease certain case studies for full aircraft
         #reset result readiness
         self.stabavailable=False
         self.forcesavailable=False
+        self.haseqflatplate=False
         self.parameter_report()
     def bodies_eqflatplate_apply(self, rho=1.225, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
+        self.haseqflatplate=True
         for bdy in self.bodies:
             bdy.apply_eqflatplate(rho=rho, nu=nu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0):
-        self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p, q=self.q, r=self.r, damper=damper, Uinf=self.Uinf, echo=True)
+        self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*self.bref*2*self.Uinf, q=self.q*2*self.cref*self.Uinf, \
+            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True)
     def forces_report(self):
         print('========Total Forces Report========')
         if self.hascorrections:
-            print('Inviscid case: ')
+            if self.haseqflatplate:
+                str_Cf='+local Cf estimation'
+            else:
+                str_Cf=''
+            print('Inviscid'+str_Cf+' case: ')
         if not self.forcesavailable:
             self.calcforces(echo=False)
         print('%10s %10s %10s %10s %10s %10s | %10s %10s' % ('CX', 'CY', 'CZ', 'Cl', 'Cm', 'Cn', 'CL', 'CD'))

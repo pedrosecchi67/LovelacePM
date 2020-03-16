@@ -3,6 +3,8 @@
 ! 2- Calculation of local self-induced velocity based on adjacent lines
 ! 3- Quickly calculate argument in yz plane
 ! 4- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
+! 5- Generating complete field analysis at arbitrary control point for Trefftz induced drag analysis and 
+! free wake wrapping
 subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
     integer, intent(IN) :: npan, nlin
     real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), colpoints(1:npan, 1:3)
@@ -141,3 +143,24 @@ subroutine get_panel_contact(npan, p, u, Mtosys_set, Mtouni_set, points_set, p0_
 
     error=(.NOT. found)
 end subroutine get_panel_contact
+
+subroutine get_field_influence(nlin, lines, solution_lines, colpoint, tolerance, dv)
+    integer, intent(IN) :: nlin
+    real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), solution_lines(1:nlin), colpoint(1:3), tolerance
+    real(8), intent(OUT) :: dv(3)
+
+    real(8) :: a(1:3), b(1:3), na, nb
+
+    do j=1, nlin
+        a=lines(j, 1:3, 1)-colpoint
+        b=lines(j, 1:3, 2)-colpoint
+        na=norm2(a)
+        nb=norm2(b)
+        if(norm2((/a(2)*b(3)-a(3)*b(2), a(3)*b(1)-a(1)*b(3), a(1)*b(2)-a(2)*b(1)/))>na*nb*tolerance) then
+            dv=dv+solution_lines(j)*(((/a(2)*b(3)-a(3)*b(2), &
+            a(3)*b(1)-a(1)*b(3), &
+            a(1)*b(2)-a(2)*b(1)/)*(1.0/na+1.0/nb))/&
+            (na*nb+dot_product(a, b)))/12.5663706
+        end if
+    end do   
+end subroutine get_field_influence

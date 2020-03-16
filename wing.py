@@ -33,7 +33,7 @@ class wing_section: #class to define wing section based on airfoil info
     def hascorrection(self): #check whether or not external polar is fed to post-processor
         return self.correction!=None
     def getcorrection(self, Re=2e6):
-        self.alphas, self.Cls, self.Cds, self.Cms=self.correction(Re=Re)
+        self.alphas, self.Cls, self.Cds, self.Cms=self.correction(Re=Re, inverse=self.inverted)
     def addcontrols(self, controls=[], control_multipliers=[], control_axpercs=[]):
         if not self.hascontrol():
             self.controls=controls
@@ -61,6 +61,8 @@ class wing_section: #class to define wing section based on airfoil info
         return list(range(inlen, len(self.controls)))
     def hascontrol(self):
         return hasattr(self, 'controls')
+    def hasdeflection(self): #define if there is any deflection in controls in section in question
+        return any([cntrl.DOF.state!=0.0 for cntrl in self.controls])
     def getinthick(self, eta=0.5, x=0.0): #get point in x, at thickness percentage eta
         LE_ind=np.argmin(self.points[:, 0])
         extra=self.points[0:LE_ind+1, :]
@@ -172,7 +174,8 @@ class wing_quadrant: #wing region between two airfoil sections
         #variable including all control DOFs in aircraft object
         #code for prevlines: 'intra_left', 'intra_right', 'extra_...
         #and wing quadrant patch additions
-        controlset=self.acft.controlset
+        if self.acft.hascontrol():
+            controlset=self.acft.controlset
         lspacing=strategy(np.linspace(0.0, 1.0, ldisc))
         extrasld=[]
         xdisc=int(np.size(self.sect1.points, 0)/2)+1
@@ -233,23 +236,25 @@ class wing_quadrant: #wing region between two airfoil sections
         sect2_xdisc=np.size(self.sect2.points, axis=0)
         
         if self.hascontrol():
-            if 'extra_left' in prevlines:
-                for l in range(len(prevlines['extra_left'])):
-                    if l in controlpts1 or l-1 in controlpts1:
-                        prevlines['extra_left'][l]=-2
-            if 'intra_left' in prevlines:
-                for l in range(len(prevlines['intra_left'])):
-                    if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts1:
-                        prevlines['intra_left'][l]=-2
-            if 'extra_right' in prevlines:
-                for l in range(len(prevlines['extra_right'])):
-                    if l in controlpts2 or l-1 in controlpts2:
-                        prevlines['extra_right'][l]=-2
-            if 'intra_right' in prevlines:
-                for l in range(len(prevlines['intra_right'])):
-                    if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
-                        prevlines['intra_right'][l]=-2
-        
+            if self.sect1.hasdeflection():
+                if 'extra_left' in prevlines:
+                    for l in range(len(prevlines['extra_left'])):
+                        if l in controlpts1 or l-1 in controlpts1:
+                            prevlines['extra_left'][l]=-2
+                if 'intra_left' in prevlines:
+                    for l in range(len(prevlines['intra_left'])):
+                        if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts1:
+                            prevlines['intra_left'][l]=-2
+            if self.sect2.hasdeflection():
+                if 'extra_right' in prevlines:
+                    for l in range(len(prevlines['extra_right'])):
+                        if l in controlpts2 or l-1 in controlpts2:
+                            prevlines['extra_right'][l]=-2
+                if 'intra_right' in prevlines:
+                    for l in range(len(prevlines['intra_right'])):
+                        if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                            prevlines['intra_right'][l]=-2
+            
         prev={}
         if 'extra_right' in prevlines:
             prev['right']=prevlines['extra_right']
@@ -270,6 +275,7 @@ class wing_quadrant: #wing region between two airfoil sections
         LE_lines.reverse()
         TE_lines=[horzlines[0][i] for i in range(len(horzlines[0]))]
         TE_lines.reverse()
+
         prev={'up':LE_lines, 'low':TE_lines}
         if 'intra_right' in prevlines:
             prev['left']=prevlines['intra_right']
@@ -302,22 +308,24 @@ class wing_quadrant: #wing region between two airfoil sections
                 if sect2_xdisc-i-1 in controlpts2:
                     self.intraright_points[i]=self.sect2.points[sect2_xdisc-i-1, :]
             
-            for l in range(len(self.extraleft_lines)):
-                if l in controlpts1 or l-1 in controlpts1:
-                    self.sld.panels[extra_paninds[l][-1]].nocirc_enforce(self.extraleft_lines[l]) #avoid excessive circulation from open control surfaces
-                    self.extraleft_lines[l]=-2
-            for l in range(len(self.intraleft_lines)):
-                if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts2:
-                    self.sld.panels[intra_paninds[l][0]].nocirc_enforce(self.intraleft_lines[l]) #avoid excessive circulation from open control surfaces
-                    self.intraleft_lines[l]=-2
-            for l in range(len(self.extraright_lines)):
-                if l in controlpts2 or l-1 in controlpts2:
-                    self.sld.panels[extra_paninds[l][0]].nocirc_enforce(self.extraright_lines[l]) #avoid excessive circulation from open control surfaces
-                    self.extraright_lines[l]=-2
-            for l in range(len(self.intraright_lines)):
-                if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
-                    self.sld.panels[intra_paninds[l][-1]].nocirc_enforce(self.intraright_lines[l]) #avoid excessive circulation from open control surfaces
-                    self.intraright_lines[l]=-2
+            if self.sect1.hasdeflection():
+                for l in range(len(self.extraleft_lines)):
+                    if l in controlpts1 or l-1 in controlpts1:
+                        self.sld.panels[extra_paninds[l][-1]].nocirc_enforce(self.extraleft_lines[l]) #avoid excessive circulation from open control surfaces
+                        self.extraleft_lines[l]=-2
+                for l in range(len(self.intraleft_lines)):
+                    if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts2:
+                        self.sld.panels[intra_paninds[l][0]].nocirc_enforce(self.intraleft_lines[l]) #avoid excessive circulation from open control surfaces
+                        self.intraleft_lines[l]=-2
+            if self.sect2.hasdeflection():
+                for l in range(len(self.extraright_lines)):
+                    if l in controlpts2 or l-1 in controlpts2:
+                        self.sld.panels[extra_paninds[l][0]].nocirc_enforce(self.extraright_lines[l]) #avoid excessive circulation from open control surfaces
+                        self.extraright_lines[l]=-2
+                for l in range(len(self.intraright_lines)):
+                    if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
+                        self.sld.panels[intra_paninds[l][-1]].nocirc_enforce(self.intraright_lines[l]) #avoid excessive circulation from open control surfaces
+                        self.intraright_lines[l]=-2
 
         #wake info
         for i in range(len(TE_extra)):
@@ -417,7 +425,7 @@ class wing_quadrant: #wing region between two airfoil sections
         self.cs=np.array(self.cs)
         self.Gammas=np.array(self.Gammas)
 
-        if self.hascorrection: #apply viscous correction from external polars
+        if self.hascorrection(): #apply viscous correction from external polars
             eta=np.interp(self.ys, np.array([self.sect1.CA_position[perpaxis], self.sect2.CA_position[perpaxis]]), np.array([0.0, 1.0]))
             self.Cls_corrected=np.array([self.sect1.Cls(self.Cls[i])*(1.0-eta[i])+eta[i]*self.sect2.Cls(self.Cls[i]) for i in range(len(eta))])
             self.Cds_corrected=np.array([self.sect1.Cds(self.Cls[i])*(1.0-eta[i])+eta[i]*self.sect2.Cds(self.Cls[i]) for i in range(len(eta))])+self.Cds
@@ -427,9 +435,8 @@ class wing_quadrant: #wing region between two airfoil sections
     def hascorrection(self):
         return self.sect1.hascorrection() and self.sect2.hascorrection()
     def calc_corrected_forces(self): #returns Ceta (for generic parameter eta) considering external polar corrections in coefficients
-        perpvec=np.cross(np.array([1.0, 0.0, 0.0]), self.sect2.CA_position-self.sect1.CA_position)
-        perpvec/=lg.norm(perpvec)
         parvec=self.sect2.CA_position-self.sect1.CA_position
+        parvec[0]=0.0
         parvec/=lg.norm(parvec)
         xposit=np.interp(self.ys, np.array([self.sect1.CA_position[self.perpaxis], self.sect2.CA_position[self.perpaxis]]), \
             np.array([self.sect1.CA_position[0], self.sect2.CA_position[0]]))
@@ -440,15 +447,27 @@ class wing_quadrant: #wing region between two airfoil sections
         dCX=0.0; dCY=0.0; dCZ=0.0; dCl=0.0; dCm=0.0; dCn=0.0
         dmom=np.zeros((len(self.ys), 3))
         dforc=np.zeros((len(self.ys), 3))
+        a=self.acft.a
+        b=self.acft.b
+        p=self.acft.p*self.acft.bref*2
+        q=self.acft.q*self.acft.cref*2
+        r=self.acft.r*self.acft.bref*2
         for i in range(len(self.ys)):
-            dforc[i, :]=perpvec*self.cs[i]*(self.Cls[i]-self.Cls_corrected[i])+np.array([1.0, 0.0, 0.0])*self.cs[i]*(self.Cds[i]-self.Cds_corrected[i])
-            dmom[i, :]=np.cross(np.array([xposit[i], yposit[i], zposit[i]]), dforc[i, :])+(self.cs[i]**2)*(self.Cms[i]-self.Cms_corrected[i])*parvec
-        dCX=np.trapz(dforc[:, 0], x=self.ys)/self.acft.Sref
-        dCY=np.trapz(dforc[:, 1], x=self.ys)/self.acft.Sref
-        dCZ=np.trapz(dforc[:, 2], x=self.ys)/self.acft.Sref
-        dCl=np.trapz(dmom[:, 0], x=self.ys)/(self.acft.Sref*self.acft.bref)
-        dCm=np.trapz(dmom[:, 1], x=self.ys)/(self.acft.Sref*self.acft.cref)
-        dCn=np.trapz(dmom[:, 2], x=self.ys)/(self.acft.Sref*self.acft.bref)
+            posit=np.array([xposit[i], yposit[i], zposit[i]])
+            freestream=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([-p, q, -r], dtype='double'), posit)
+            freestream/=lg.norm(freestream)
+            perpvec=self.sect2.CA_position-self.sect1.CA_position
+            perpvec[0]=0.0
+            perpvec=np.cross(freestream, perpvec)
+            perpvec/=lg.norm(perpvec)
+            dforc[i, :]=perpvec*self.cs[i]*(self.Cls_corrected[i]-self.Cls[i])+freestream*self.cs[i]*(self.Cds_corrected[i]-self.Cds[i])
+            dmom[i, :]=np.cross(posit, dforc[i, :])+(self.cs[i]**2)*(self.Cms_corrected[i]-self.Cms[i])*parvec
+        dCX=-np.trapz(dforc[:, 0], x=self.ys)/self.acft.Sref
+        dCY=-np.trapz(dforc[:, 1], x=self.ys)/self.acft.Sref
+        dCZ=-np.trapz(dforc[:, 2], x=self.ys)/self.acft.Sref
+        dCl=-np.trapz(dmom[:, 0], x=self.ys)/(self.acft.Sref*self.acft.bref)
+        dCm=-np.trapz(dmom[:, 1], x=self.ys)/(self.acft.Sref*self.acft.cref)
+        dCn=-np.trapz(dmom[:, 2], x=self.ys)/(self.acft.Sref*self.acft.bref)
         return dCX, dCY, dCZ, dCl, dCm, dCn
 
 class wing:
@@ -590,7 +609,7 @@ class wing:
         for quad in self.wingquads:
             quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=[[0, 0]], a=a, b=b)
     def hascorrection(self):
-        return any([wngqd.hascorrection() for wngqd in self.wingquads])
+        return all([wngqd.hascorrection() for wngqd in self.wingquads])
     def calc_corrected_forces(self): #compose correction forces from each wing quadrant
         dCX=0.0; dCY=0.0; dCZ=0.0; dCl=0.0; dCm=0.0; dCn=0.0
         for wngqd in self.wingquads:

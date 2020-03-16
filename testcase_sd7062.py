@@ -12,6 +12,7 @@ from utils import *
 from wing import *
 from body import *
 from aircraft import *
+from xfoil_visc import *
 from aerodynamic_output import *
 
 a=radians(0.0)
@@ -27,10 +28,10 @@ sect2=wing_section(afl='sd7062', CA_position=np.array([0.0, b/2, 0.0]), c=croot,
 
 wng1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 wng=wing(wingquads=[wng1])
-wng.patchcompose(ydisc=40, ystrategy=lambda x: x)#(np.sin(pi*x-pi/2)+1)/2)
 wng.close_tip(sectside=1)
 wng.close_tip(sectside=2)
 acft=aircraft(sld, elems=[wng], Sref=b*croot*(1+taper)/2)
+wng.patchcompose(ydisc=20)
 acft.edit_parameters(par='a', val=a)
 acft.edit_parameters(par='Uinf', val=Uinf)
 acft.addwake()

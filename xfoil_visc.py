@@ -75,7 +75,10 @@ def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True,
             contentlist=linelist[i].split()
             alphas[i]=float(contentlist[0])
             Cls[i]=float(contentlist[1])
-            Cds[i]=float(contentlist[2])
+            if visc:
+                Cds[i]=float(contentlist[2])
+            else:
+                Cds[i]=float(contentlist[3])
             Cms[i]=float(contentlist[4])
         pfile.close()
         if os.path.exists('temppolar.plr'):
@@ -129,7 +132,6 @@ class polar_correction:
                     str(self.Cds_Re_high[i])+' '+str(self.Cms_Re_high[i])+'\n')
         file.close()
     def create_functions(self, cubic=True):
-        self.alphas_fun=sinterp.CubicSpline(self.Cls_inviscid, self.alphas_inviscid)
         Cls_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cls_inviscid)
         Cls_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cls_inviscid)
         Cds_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cds_inviscid)
@@ -137,6 +139,7 @@ class polar_correction:
         Cms_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cms_inviscid)
         Cms_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cms_inviscid)
         if cubic:
+            self.alphas_fun=sinterp.CubicSpline(self.Cls_inviscid, self.alphas_inviscid)
             self.Cls_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cls_Re_low)
             self.Cls_Re_high_fun=sinterp.CubicSpline(Cls_inviscid_Re_high, self.Cls_Re_high)
             self.Cds_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cds_Re_low-Cds_inviscid_Re_low)
@@ -144,18 +147,25 @@ class polar_correction:
             self.Cms_Re_low_fun=sinterp.CubicSpline(Cls_inviscid_Re_low, self.Cms_Re_low-Cms_inviscid_Re_low)
             self.Cms_Re_high_fun=sinterp.CubicSpline(Cls_inviscid_Re_high, self.Cms_Re_high-Cms_inviscid_Re_high)
         else:
+            self.alphas_fun=sinterp.interp1d(self.Cls_inviscid, self.alphas_inviscid)
             self.Cls_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cls_Re_low)
             self.Cls_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cls_Re_high)
             self.Cds_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cds_Re_low-Cds_inviscid_Re_low)
             self.Cds_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cds_Re_high-Cds_inviscid_Re_high)
             self.Cms_Re_low_fun=sinterp.interp1d(Cls_inviscid_Re_low, self.Cms_Re_low-Cms_inviscid_Re_low)
             self.Cms_Re_high_fun=sinterp.interp1d(Cls_inviscid_Re_high, self.Cms_Re_high-Cms_inviscid_Re_high)
-    def __call__(self, Re=2e6): #return fitting functions for a given Reynolds number
+    def __call__(self, Re=2e6, inverse=False): #return fitting functions for a given Reynolds number
         eta=np.interp(Re, np.array([self.Re_low, self.Re_high]), np.array([0.0, 1.0]))
-        alphas=lambda Cl: self.alphas_fun(Cl)
-        Cls=lambda Cl: self.Cls_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cls_Re_high_fun(Cl)
-        Cds=lambda Cl: self.Cds_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cds_Re_high_fun(Cl)
-        Cms=lambda Cl: self.Cms_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cms_Re_high_fun(Cl)
+        if not inverse:
+            alphas=lambda Cl: self.alphas_fun(-Cl)
+            Cls=lambda Cl: self.Cls_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cls_Re_high_fun(Cl)
+            Cds=lambda Cl: self.Cds_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cds_Re_high_fun(Cl)
+            Cms=lambda Cl: self.Cms_Re_low_fun(Cl)*(1.0-eta)+eta*self.Cms_Re_high_fun(Cl)
+        else:
+            alphas=lambda Cl: -self.alphas_fun(-Cl)
+            Cls=lambda Cl: -(self.Cls_Re_low_fun(-Cl)*(1.0-eta)+eta*self.Cls_Re_high_fun(-Cl))
+            Cds=lambda Cl: self.Cds_Re_low_fun(-Cl)*(1.0-eta)+eta*self.Cds_Re_high_fun(-Cl)
+            Cms=lambda Cl: -(self.Cms_Re_low_fun(-Cl)*(1.0-eta)+eta*self.Cms_Re_high_fun(-Cl))
         return alphas, Cls, Cds, Cms
 
 def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cubic=True): #read polars from dumped file

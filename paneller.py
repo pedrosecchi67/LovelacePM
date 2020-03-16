@@ -141,6 +141,7 @@ class Solid:
             te_linind=self.panels[refup].lines.pop(indup)
         else:
             te_linind=self.panels[refup].wakelines.pop(indup-len(self.panels[refup].lines))
+        self.panels[refup].TE_line=te_linind
         if te_linind>0:
             #first wake vortex
             p0=self.lines[te_linind-1, :, 0]
@@ -169,8 +170,9 @@ class Solid:
             indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
         self.panels[refup].wakelines+=indsup
         if refdown!=-1:
-            self.panels[refdown].lines.pop(indown)
+            te_linind=self.panels[refdown].lines.pop(indown)
             self.panels[refdown].wakelines+=[-l for l in indsup]
+            self.panels[refdown].TE_line=te_linind
     def genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
         #wakecombs: list of lists, first element in sublist is upper surface panel
         #wakeinds: list of lists indicating corresponding wake vortex line segment index to apply kutta condition to
