@@ -23,7 +23,7 @@ setup(
     ext_modules=extensions,
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: GNU GPL v3.0",
+        "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
     install_requires=['numpy', 'scipy', 'matplotlib'],
