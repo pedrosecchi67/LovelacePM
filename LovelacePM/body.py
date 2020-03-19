@@ -415,6 +415,9 @@ def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), 
     xs+=[body_length]
     Rs+=[0]
 
+    zs=[nose_lift, 0.0, 0.0, tail_lift]
+    zs=np.interp(np.array(xs), np.array([0.0, head_length, body_length-tailcone_length, body_length]), np.array(zs))
+
     for i in range(len(xs)):
-        sects+=[defsect(R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, 0.0]), cubic=cubic, disc=body_thdisc)]
+        sects+=[defsect(R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, zs[i]]), cubic=cubic, disc=body_thdisc)]
     return body(sld, sections=sects, tolerance=tolerance, cubic=cubic)
