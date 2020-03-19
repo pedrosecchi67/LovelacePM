@@ -415,7 +415,7 @@ class Solid:
         dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
         return dCps
-    def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True):
+    def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
         ax=plt.axes(projection='3d')
@@ -427,9 +427,9 @@ class Solid:
                     [p.nvector[1]*0.005 for p in self.panels], \
                         [p.nvector[2]*0.005 for p in self.panels])'''
             ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-                [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
-                    [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
-                        [self.vbar[i, 2]+self.delphi[i, 2] for i in range(self.npanels)])
+                [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
+                    [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \
+                        [(self.vbar[i, 2]+self.delphi[i, 2])*factor for i in range(self.npanels)])
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
         if len(ylim)!=0:

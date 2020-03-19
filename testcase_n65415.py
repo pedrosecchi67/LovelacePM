@@ -31,7 +31,7 @@ sect3=wing_section(afl='n65415', CA_position=np.array([b*tan(quarter_sweep)/2, b
 
 wng1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 wng2=wing_quadrant(sld, sect1=sect2, sect2=sect3)
-wng=wing(wingquads=[wng1, wng2])
+wng=wing(sld, wingquads=[wng1, wng2])
 wng.patchcompose(ydisc=40, ystrategy=lambda x: x)#(np.sin(pi*x-pi/2)+1)/2)
 wng.close_tip(sectside=1)
 wng.close_tip(sectside=2)

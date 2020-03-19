@@ -3,5 +3,6 @@
 /airfoils
 *.avl
 *.so
-*.bl
+:*.bl
 /__pycache
+*.plr

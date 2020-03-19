@@ -102,14 +102,14 @@ subroutine get_panel_contact(npan, p, u, Mtosys_set, Mtouni_set, points_set, p0_
             pl=matmul(Mtosys_set(n, 1:3, 1:3), p-p0_set(n, 1:3))
             ul=matmul(Mtosys_set(n, 1:3, 1:3), u)
             locpoints=points_set(n, 1:3, 1:4)
-            if(pl(3)==0.0) then
+            if(abs(pl(3))<tolerance) then
                 pcont=pl
                 i=1
                 isin=.TRUE.
                 do while(i<=4 .AND. isin)
                     side=locpoints(1:3, mod(i, 4)+1)-locpoints(1:3, i)
                     vect=pcont-locpoints(1:3, i)
-                    isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<0.0))
+                    isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<tolerance))
                     i=i+1
                 end do
                 if(isin) then
@@ -126,7 +126,7 @@ subroutine get_panel_contact(npan, p, u, Mtosys_set, Mtouni_set, points_set, p0_
                     do while(i<=4 .AND. isin)
                         side=locpoints(1:3, mod(i, 4)+1)-locpoints(1:3, i)
                         vect=pcont-locpoints(1:3, i)
-                        isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<0.0))
+                        isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<-tolerance))
                         i=i+1
                     end do
                     if(isin) then

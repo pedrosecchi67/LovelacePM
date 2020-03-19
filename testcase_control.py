@@ -26,7 +26,7 @@ sect2=wing_section(afl='n4412', c=c, CA_position=np.array([0.0, 0.0, 0.0]), xdis
 sect3=wing_section(afl='n4412', c=c, CA_position=np.array([0.0, b/2, 0.0]), xdisc=30)
 wngqd1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 wngqd2=wing_quadrant(sld, sect1=sect2, sect2=sect3, control_names=['aileron'], control_axpercs_x=[[0.75, 0.75]], control_axpercs_thickness=[[0.5, 0.5]])
-wng=wing(wingquads=[wngqd1, wngqd2])
+wng=wing(sld, wingquads=[wngqd1, wngqd2])
 acft=aircraft(sld, elems=[wng])
 acft.edit_parameters({'Uinf':0.01, 'aileron':1})
 wng.patchcompose(ydisc=70)

@@ -21,8 +21,13 @@ import platform as plat
 
 ''' Xfoil automation to temporarily supply the absense of a parallel, estimative boundary layer solver '''
 
-def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None):
+def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None):
     #flap variable: [x_hinge, y_hinge, deflection(angles)]. aseq: same input as required for xfoil command
+    ordir=os.getcwd()
+    if len(afldir)==0:
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    else:
+        os.chdir(afldir)
     if os.path.exists('temppolar.plr'):
         os.remove('temppolar.plr')
     cmds=[]
@@ -83,6 +88,9 @@ def polar_data(name='n4412', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True,
         pfile.close()
         if os.path.exists('temppolar.plr'):
             os.remove('temppolar.plr')
+        if os.path.exists('*.bl'):
+            os.remove('*.bl')
+    os.chdir(ordir)
     return alphas, Cls, Cds, Cms
 
 class polar_correction:
@@ -98,6 +106,8 @@ class polar_correction:
         if len(name)!=0:
             self.create_functions(cubic=cubic)
     def dump(self, poldir='polars', polname='n4412', ext_append=True, echo=True): #dump to file
+        ordir=os.getcwd()
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
         fname=poldir+'/'+polname
         if ext_append:
             fname+='.plr'
@@ -131,6 +141,7 @@ class polar_correction:
                 print(str(self.alphas_Re_high[i])+' '+str(self.Cls_Re_high[i])+' '+\
                     str(self.Cds_Re_high[i])+' '+str(self.Cms_Re_high[i])+'\n')
         file.close()
+        os.chdir(ordir)
     def create_functions(self, cubic=True):
         Cls_inviscid_Re_low=np.interp(self.alphas_Re_low, self.alphas_inviscid, self.Cls_inviscid)
         Cls_inviscid_Re_high=np.interp(self.alphas_Re_high, self.alphas_inviscid, self.Cls_inviscid)
@@ -169,6 +180,8 @@ class polar_correction:
         return alphas, Cls, Cds, Cms
 
 def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cubic=True): #read polars from dumped file
+    ordir=os.getcwd()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     newpolar=polar_correction(name='')
     fname=poldir+'/'+polname
     if ext_append:
@@ -234,4 +247,5 @@ def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cub
     already_read+=nrehigh
     file.close()
     newpolar.create_functions(cubic=cubic)
+    os.chdir(ordir)
     return newpolar

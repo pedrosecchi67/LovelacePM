@@ -35,7 +35,7 @@ sect3=wing_section(CA_position=np.array([0.0, b/2, 0.0]), c=croot*taper, xdisc=2
 
 wingquad_right=wing_quadrant(sld, sect1=sect2, sect2=sect3)
 
-wng=wing(wingquads=[wingquad_left, wingquad_right])
+wng=wing(sld, wingquads=[wingquad_left, wingquad_right])
 
 wng.patchcompose(ydisc=40, ystrategy=lambda x: x)#lambda x: (np.sin(pi*x-pi/2)+1)/2)
 
@@ -45,7 +45,7 @@ stabsect3=wing_section(CA_position=np.array([fuselage_rearlen, 0.3, 0.3]), inver
 
 horz_emp_left=wing_quadrant(sld, sect1=stabsect1, sect2=stabsect2)
 horz_emp_right=wing_quadrant(sld, sect1=stabsect2, sect2=stabsect3)
-horz_emp=wing(wingquads=[horz_emp_left, horz_emp_right])
+horz_emp=wing(sld, wingquads=[horz_emp_left, horz_emp_right])
 
 horz_emp.patchcompose(ydisc=24)
 

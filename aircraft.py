@@ -40,6 +40,42 @@ class aircraft: #class to ease certain case studies for full aircraft
         else:
             print('%10s %10s %10s %10s %10s %10s %10s %10s' % ('m', 'Ixx', 'Iyy', 'Izz', 'Ixy', 'Ixz', 'Ixz', 'Iyz'))
             print('%10f %10f %10f %10f %10f %10f %10f %10f' % (self.m, self.Ixx, self.Iyy, self.Izz, self.Ixy, self.Ixz, self.Iyz))'''
+    def balance(self, SM=0.1, echo=True): #balancing the aircraft for given static margin
+        if not self.stabavailable:
+            print('WARNING: stability derivatives not available for balancing. Performing in place')
+            self.calcstab(echo=echo)
+        loc_SM=-self.stabderivative_dict['a']['dCm']/self.stabderivative_dict['a']['dCL']
+        self.transp_byvec((SM-loc_SM)*np.array([1.0, 0.0, 0.0])*self.cref)
+        new_SM=-self.stabderivative_dict['a']['dCm']/self.stabderivative_dict['a']['dCL']
+        if echo:
+            print('==========Balancing========')
+            print('%10s %10s' % ('SM init', 'SM final'))
+            print('%10f %10f' % (loc_SM, new_SM))
+            self.forces_report()
+            if self.stabavailable:
+                self.stabreport()
+            print('===========================')
+    def transp_byvec(self, vec): #transport pre-calculated forces by a 'vec' deallocation in CG
+        mom_transp=np.cross(vec, np.array([self.CX, self.CY, self.CZ]))
+        self.Cl+=mom_transp[0]/self.bref
+        self.Cm+=mom_transp[1]/self.cref
+        self.Cn+=mom_transp[2]/self.bref
+        if self.stabavailable:
+            pars=['a', 'b', 'p', 'q', 'r']
+            for par in pars:
+                dmom_transp=np.cross(vec, np.array([self.stabderivative_dict[par]['dCX'], self.stabderivative_dict[par]['dCY'], \
+                    self.stabderivative_dict[par]['dCZ']]))
+                self.stabderivative_dict[par]['dCl']+=dmom_transp[0]/self.bref
+                self.stabderivative_dict[par]['dCm']+=dmom_transp[1]/self.cref
+                self.stabderivative_dict[par]['dCn']+=dmom_transp[2]/self.bref
+        if self.hascorrections:
+            mom_transp=np.cross(vec, np.array([self.dCX, self.dCY, self.dCZ]))
+            self.dCl+=mom_transp[0]/self.bref
+            self.dCm+=mom_transp[1]/self.cref
+            self.dCn+=mom_transp[2]/self.bref
+    def transp_to_cg(self, CG):
+        self.transp_byvec(-self.CG)
+        self.transp_byvec(CG)
     def __init__(self, sld, elems=[], Sref=0.0, cref=0.0, bref=0.0, echo=True):
         self.wings=[]
         self.bodies=[]
@@ -75,6 +111,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.q=0.0
         self.r=0.0
         self.Uinf=1.0
+
+        self.CG=np.array([0.0, 0.0, 0.0])
         
         #defining available controls
         self.controlset={}
@@ -125,7 +163,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.sld.end_preprocess()
         for wng in self.wings:
             wng.genwakepanels(offset=offset, a=self.a, b=self.b)
-    def calcforces(self, echo=True, custCp=np.array([])):
+    def calcforces(self, echo=True, CG=np.array([0.0, 0.0, 0.0]), custCp=np.array([])):
         self.CX=sum([self.sld.forces[i][0] for i in range(self.sld.npanels)])/self.Sref
         self.CY=sum([self.sld.forces[i][1] for i in range(self.sld.npanels)])/self.Sref
         self.CZ=sum([self.sld.forces[i][2] for i in range(self.sld.npanels)])/self.Sref
@@ -153,6 +191,8 @@ class aircraft: #class to ease certain case studies for full aircraft
             adforces=np.array([self.dCX, self.dCY, self.dCZ])
             self.dCL=adforces@v
             self.dCD=adforces@u
+        
+        self.transp_to_cg(CG)
 
         if echo:
             self.forces_report()
@@ -190,6 +230,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             dCn=sum([moments[i][2] for i in range(self.sld.npanels)])/(self.Sref*self.bref)
             self.stabderivative_dict[p]={'dCX':dCX, 'dCY':dCY, 'dCZ':dCZ, 'dCL':dCL, 'dCD':dCD, 'dCl':dCl, 'dCm':dCm, 'dCn':dCn}
         self.stabavailable=True
+        self.transp_byvec(self.CG)
         if echo:
             self.stabreport()
     def stabreport(self): #report calculated stability derivatives, or calculate them in place
@@ -248,3 +289,31 @@ class aircraft: #class to ease certain case studies for full aircraft
             print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX+self.dCX, self.CY+self.dCY, self.CZ+self.dCZ, \
                 self.Cl+self.dCl, self.Cm+self.dCm, self.Cn+self.dCn, self.CL+self.dCL, self.CD+self.dCD))
         print('===================================')
+    def plot_input(self, xlim=[], ylim=[], zlim=[]):
+        fig=plt.figure()
+        ax=plt.axes(projection='3d')
+        for elem in self.bodies+self.wings:
+            elem.plot_input(ax=ax, fig=fig)
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        else:
+            ax.set_xlim3d(-self.plotlim, self.plotlim)
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        else:
+            ax.set_ylim3d(-self.plotlim, self.plotlim)
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        else:
+            ax.set_zlim3d(-self.plotlim, self.plotlim)
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.show()
+    def plotgeometry(self, xlim=[], ylim=[], zlim=[], factor=1.0, velfield=True):
+        if len(xlim)==0:
+            xlim=[-self.plotlim, self.plotlim]
+        if len(ylim)==0:
+            ylim=[-self.plotlim, self.plotlim]
+        if len(zlim)==0:
+            zlim=[-self.plotlim, self.plotlim]
+        self.sld.plotgeometry(xlim=xlim, ylim=ylim, zlim=zlim, factor=factor, velfield=velfield)

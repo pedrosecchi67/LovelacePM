@@ -24,8 +24,8 @@ class wing_section: #class to define wing section based on airfoil info
         self.c=c
         self.closed=closed
         self.points=wing_afl_positprocess(read_afl(afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
-            remove_TE_gap=remove_TE_gap, incidence=incidence, inverse=inverse, strategy=xstrategy), \
-                gamma=gamma, c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
+            remove_TE_gap=remove_TE_gap, incidence=radians(incidence), inverse=inverse, strategy=xstrategy), \
+                gamma=radians(gamma), c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
         self.correction=correction
         if self.hascorrection():
@@ -133,17 +133,21 @@ class wing_quadrant: #wing region between two airfoil sections
             us=self.sect2.points-self.sect1.points
             for i in range(np.size(self.sect2.points, 0)):
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
-                self.sect2.points[i, :]=newpt
                 if errorcode:
-                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible.')
+                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible,', \
+                        'or change requested discretization for fuselage input.')
+                else:
+                    self.sect2.points[i, :]=newpt
         else:
             ps=self.sect2.points
             us=self.sect1.points-self.sect2.points
             for i in range(np.size(self.sect2.points, 0)):
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
-                self.sect1.points[i, :]=newpt
                 if errorcode:
-                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible.')
+                    print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible,', \
+                        'or change requested discretization for fuselage input.')
+                else:
+                    self.sect1.points[i, :]=newpt
     def plot_input(self, fig=None, ax=None, show=False, xlim=[], \
         ylim=[], zlim=[], colour='blue'): #plot input geometry data
         if fig==None:
@@ -475,7 +479,8 @@ class wing:
         self.acft=acft #define aircraft structure related to instance
         for wngqd in self.wingquads:
             wngqd.set_aircraft(acft)
-    def __init__(self, wingquads=[]):
+    def __init__(self, sld, wingquads=[]):
+        self.sld=sld
         self.coefavailable=False
         self.wingquads=wingquads
         self.leftclosed=False

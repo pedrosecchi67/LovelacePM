@@ -37,6 +37,8 @@ class body_section:
         for i in range(np.size(coords, 0)):
             self.coords[i, :]+=center
         thetas=np.arctan2(coords[:, 0], coords[:, 1])
+        if thetas[0]>0.0: #detect positive argument deduction for (0, -1)
+            thetas[0]*=-1
         Rs=lg.norm(coords, axis=1)
         order=np.argsort(thetas)
         self.thetas=thetas[order]
@@ -388,8 +390,12 @@ def circdefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): 
     #discretization necessities
     return body_section(coords=gen_circdefsect_coords(disc), R=R, center=center, cubic=cubic)
 
-def standard_body(sld, nose_loc=np.array([0.0, 0.0, 0.0]), head_length=0.1, head_thdisc=10, body_length=1.0, \
-    body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005):
+def squaredefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
+    #discretization necessities
+    return body_section(coords=gen_squaredefsect_coords(disc), R=R, center=center, cubic=cubic)
+
+def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), head_length=0.1, head_thdisc=10, body_length=1.0, \
+    body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0):
     #standard body: semi-ellipsoid head, straight cylindric body and conventional tailcone, all along x axis
     sects=[]
     head_thetas=np.linspace(0.0, pi/2, head_thdisc, endpoint=False)
@@ -410,5 +416,5 @@ def standard_body(sld, nose_loc=np.array([0.0, 0.0, 0.0]), head_length=0.1, head
     Rs+=[0]
 
     for i in range(len(xs)):
-        sects+=[circdefsect(R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, 0.0]), cubic=cubic, disc=body_thdisc)]
+        sects+=[defsect(R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, 0.0]), cubic=cubic, disc=body_thdisc)]
     return body(sld, sections=sects, tolerance=tolerance, cubic=cubic)

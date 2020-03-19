@@ -17,7 +17,7 @@ from paneller import *
 from body import *
 from wing import *
 
-def plot_Cps(sld, elems=[], xlim=[], ylim=[], zlim=[]):
+def plot_Cps(sld, elems=[], xlim=[], ylim=[], zlim=[-2.5, 2.5]):
     fig=plt.figure()
     ax=plt.axes(projection='3d')
     xs=[]

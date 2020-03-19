@@ -27,7 +27,7 @@ sect1=wing_section(afl='sd7062', CA_position=np.array([0.0, -b/2, 0.0]), c=croot
 sect2=wing_section(afl='sd7062', CA_position=np.array([0.0, b/2, 0.0]), c=croot, xdisc=30)#, xstrategy=lambda x: x)
 
 wng1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
-wng=wing(wingquads=[wng1])
+wng=wing(sld, wingquads=[wng1])
 wng.close_tip(sectside=1)
 wng.close_tip(sectside=2)
 acft=aircraft(sld, elems=[wng], Sref=b*croot*(1+taper)/2)
