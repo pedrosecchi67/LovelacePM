@@ -6,3 +6,6 @@
 :*.bl
 /__pycache
 *.plr
+/dist
+*.egg-info
+/build
