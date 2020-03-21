@@ -85,9 +85,11 @@ class aircraft: #class to ease certain case studies for full aircraft
                 self.wings+=[e]
             elif type(e)==body:
                 self.bodies+=[e]
-
-        #BE VARY AWARE OF THESE WARNINGS WHEN USINGG FUSELAGE-SEPARATED SEMI-WINGS AS WING OBJECTS
-        S, mac, b=self.wings[0].calc_reference()
+        #BE VERY AWARE OF THESE WARNINGS WHEN USINGG FUSELAGE-SEPARATED SEMI-WINGS AS WING OBJECTS
+        if len(self.wings)!=0:
+            S, mac, b=self.wings[0].calc_reference()
+        else:
+            S=1.0; mac=1.0; b=1.0
         if Sref==0.0:
             print('WARNING: no reference surface provided. Using first wing input as reference. Address to aircraft constructor\'s Sref argument for better definitions')
             self.Sref=S

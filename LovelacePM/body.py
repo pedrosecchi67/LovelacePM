@@ -30,12 +30,10 @@ def Prandtl_1_7th(Re):
 #class to define functions and variables needed to represent body sections
 class body_section:
     def __init__(self, center=np.array([0.0, 0.0, 0.0]), coords=np.vstack((np.sin(np.linspace(0.0, 2*pi, 360)), \
-        np.cos(np.linspace(0.0, 2*pi, 360)))).T, R=1.0, cubic=True):
+        np.cos(np.linspace(0.0, 2*pi, 360)))).T, R=1.0, y_expand=1.0, z_expand=1.0, cubic=True):
         self.R=R
         self.coords=np.vstack((np.zeros(np.size(coords, 0)), coords[:, 0], coords[:, 1])).T*R #redefine coordinate system
         self.center=center
-        for i in range(np.size(coords, 0)):
-            self.coords[i, :]+=center
         thetas=np.arctan2(coords[:, 0], coords[:, 1])
         if thetas[0]>0.0: #detect positive argument deduction for (0, -1)
             thetas[0]*=-1
@@ -47,16 +45,23 @@ class body_section:
             self.polar_rule=sinterp.CubicSpline(self.thetas, self.Rs, extrapolate=True)
         else:
             self.polar_rule=sinterp.interp1d(self.thetas, self.Rs)
+        self.y_expand=y_expand; self.z_expand=z_expand
+        self.coords[:, 1]*=y_expand
+        self.coords[:, 2]*=z_expand
+        for i in range(np.size(coords, 0)):
+            self.coords[i, :]+=center
         #define function for interpolation in polar coordinates between theta in respect to z axis as input
     def __call__(self, th):
         R=self.polar_rule(th)
-        return np.array([0.0, sin(th), cos(th)])*R*self.R+self.center
+        return np.array([0.0, self.y_expand*sin(th), self.z_expand*cos(th)])*R*self.R+self.center
 
 class body_panel: #exclusively for intersection finding purposes
     def __init__(self, p1, p2, p3, p4, tolerance=0.00005):
         points=np.vstack((p1, p2, p3, p4)).T
         self.points=points
-        self.center, self.Mtosys, self.Mtouni, self.locpoints=toolkit.body_panel_process(self.points, tolerance)
+        self.center, self.Mtosys, self.Mtouni, self.locpoints, error=toolkit.body_panel_process(self.points, tolerance)
+        if error:
+            print('WARNING: error in body panel generation. Please check input geometry\'s integrity')
         #FORTRAN was used here for speed up purposes
 
 def prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False):
@@ -385,28 +390,53 @@ class body: #body definition class for center definition to obtain polar cooridi
                 self.sld.Cfs[p]=Cf_t_rule(local_Re)
             else:
                 self.sld.Cfs[p]=Cf_l_rule(local_Re)
+    def bodypanel_plotnormals(self, xlim=[], ylim=[], zlim=[], factor=1.0):
+        #plot normal vectors of body panels. Function essentially produced for geometry gen. debugging
+        fig=plt.figure()
+        ax=plt.axes(projection='3d')
+        for i in range(len(self.body_panels)):
+            for j in range(4):
+                ax.plot3D([self.body_panels[i].points[0, j], self.body_panels[i].points[0, (j+1)%4]], \
+                    [self.body_panels[i].points[1, j], self.body_panels[i].points[1, (j+1)%4]], \
+                        [self.body_panels[i].points[2, j], self.body_panels[i].points[2, (j+1)%4]], 'gray')
+            ax.quiver(self.body_panels[i].center[0], self.body_panels[i].center[1], self.body_panels[i].center[2], \
+                self.body_panels[i].Mtouni[0, 2]*factor, self.body_panels[i].Mtouni[1, 2]*factor, self.body_panels[i].Mtouni[2, 2]*factor)
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.show()
 
-def circdefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
+def circdefsect(y_expand=1.0, z_expand=1.0, R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
     #discretization necessities
-    return body_section(coords=gen_circdefsect_coords(disc), R=R, center=center, cubic=cubic)
+    return body_section(coords=gen_circdefsect_coords(disc), R=R, y_expand=y_expand, z_expand=z_expand, center=center, cubic=cubic)
 
-def squaredefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
+def squaredefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360, z_expand=1.0, y_expand=1.0): #generate circular defsect based on 
     #discretization necessities
-    return body_section(coords=gen_squaredefsect_coords(disc), R=R, center=center, cubic=cubic)
+    return body_section(coords=gen_squaredefsect_coords(disc), y_expand=y_expand, z_expand=z_expand, R=R, center=center, cubic=cubic)
 
-def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), head_length=0.1, head_thdisc=10, body_length=1.0, \
-    body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0):
+def smooth_angle_defsect(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5):
+    #defsect with elliptic concordances on edges
+    pass
+
+def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), nose_length=0.1, nose_thdisc=10, body_length=1.0, \
+    body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \
+y_expand=1.0):
     #standard body: semi-ellipsoid head, straight cylindric body and conventional tailcone, all along x axis
     sects=[]
-    head_thetas=np.linspace(0.0, pi/2, head_thdisc, endpoint=False)
+    head_thetas=np.linspace(0.0, pi/2, nose_thdisc, endpoint=False)
     Rs=[]
     xs=[]
 
     for th in head_thetas:
-        xs+=[(1-cos(th))*head_length]
+        xs+=[(1-cos(th))*nose_length]
         Rs+=[sin(th)*body_width/2]
 
-    xs+=[head_length]
+    xs+=[nose_length]
     Rs+=[body_width/2]
 
     xs+=[body_length-tailcone_length]
@@ -416,8 +446,8 @@ def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), 
     Rs+=[0]
 
     zs=[nose_lift, 0.0, 0.0, tail_lift]
-    zs=np.interp(np.array(xs), np.array([0.0, head_length, body_length-tailcone_length, body_length]), np.array(zs))
+    zs=np.interp(np.array(xs), np.array([0.0, nose_length, body_length-tailcone_length, body_length]), np.array(zs))
 
     for i in range(len(xs)):
-        sects+=[defsect(R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, zs[i]]), cubic=cubic, disc=body_thdisc)]
+        sects+=[defsect(z_expand=z_expand, y_expand=y_expand, R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, zs[i]]), cubic=cubic, disc=body_thdisc)]
     return body(sld, sections=sects, tolerance=tolerance, cubic=cubic)

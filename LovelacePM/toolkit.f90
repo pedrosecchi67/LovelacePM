@@ -53,27 +53,35 @@ subroutine pointarg(point1, point2, arg)
     arg=atan2(point2(2)-point1(2), point2(3)-point1(3))
 end subroutine pointarg
 
-subroutine body_panel_process(points, tolerance, p0, Mtosys, Mtouni, ptsconv)
+subroutine body_panel_process(points, tolerance, p0, Mtosys, Mtouni, ptsconv, error)
     real(8), intent(IN) :: points(1:3, 1:4), tolerance
     real(8), intent(OUT) :: p0(1:3), Mtosys(1:3, 1:3), Mtouni(1:3, 1:3), ptsconv(1:3, 1:4)
+    logical, intent(OUT) :: error
 
+    real(8) :: tempvec1(3), tempvec2(3)
     integer :: i
 
     p0=sum(points, dim=2)/4
 
-    Mtosys(1, 1:3)=points(1:3, 2)-points(1:3, 1)
-    if(norm2(Mtosys(1, 1:3))<tolerance) then
-        Mtosys(1, 1:3)=points(1:3, 3)-points(1:3, 4)
+    i=1
+    tempvec1=points(1:3, mod(i, 4)+1)-points(1:3, i)
+    tempvec2=points(1:3, mod(mod(i, 4)+1, 4)+1)-points(1:3, mod(i, 4)+1)
+    do while((norm2(tempvec1)<tolerance .OR. norm2(tempvec2)<tolerance) .AND. i<=4)
+        i=mod(i, 4)+1
+        tempvec1=points(1:3, mod(i, 4)+1)-points(1:3, i)
+        tempvec2=points(1:3, mod(mod(i, 4)+1, 4)+1)-points(1:3, mod(i, 4)+1)
+    end do
+    if(i>4) then
+        error=.TRUE.
+        return
     end if
-    Mtosys(2, 1:3)=points(1:3, 3)-points(1:3, 1)
-    if(norm2(Mtosys(2, 1:3))<tolerance) then
-        Mtosys(2, 1:3)=points(1:3, 3)-points(1:3, 2)
-    end if
-    Mtosys(1, 1:3)=Mtosys(1, 1:3)/norm2(Mtosys(1, 1:3))
-    Mtosys(2, 1:3)=Mtosys(2, 1:3)-Mtosys(1, 1:3)*dot_product(Mtosys(1, 1:3), Mtosys(2, 1:3))
-    Mtosys(2, 1:3)=Mtosys(2, 1:3)/norm2(Mtosys(2, 1:3))
-    Mtosys(3, 1:3)=(/Mtosys(1, 2)*Mtosys(2, 3)-Mtosys(1, 3)*Mtosys(2, 2), &
-    Mtosys(1, 3)*Mtosys(2, 1)-Mtosys(1, 1)*Mtosys(2, 3), Mtosys(1, 1)*Mtosys(2, 2)-Mtosys(1, 2)*Mtosys(2, 1)/)
+    tempvec1=tempvec1/norm2(tempvec1)
+    tempvec2=tempvec2-tempvec1*dot_product(tempvec1, tempvec2)
+    tempvec2=tempvec2/norm2(tempvec2)
+    Mtosys(2, 1:3)=tempvec2
+    Mtosys(1, 1:3)=tempvec1
+    Mtosys(3, 1:3)=(/tempvec1(2)*tempvec2(3)-tempvec1(3)*tempvec2(2), tempvec1(3)*tempvec2(1)-tempvec1(1)*tempvec2(3), &
+    tempvec1(1)*tempvec2(2)-tempvec1(2)*tempvec2(1)/)
     Mtouni=transpose(Mtosys)
 
     do i=1, 4
@@ -116,22 +124,18 @@ subroutine get_panel_contact(npan, p, u, Mtosys_set, Mtouni_set, points_set, p0_
                     found=.TRUE.
                 end if
             else
-                if(abs(ul(3))<tolerance) then
-                    found=.FALSE.
-                else
-                    lambda=-pl(3)/ul(3)
-                    pcont=pl+lambda*ul
-                    i=1
-                    isin=.TRUE.
-                    do while(i<=4 .AND. isin)
-                        side=locpoints(1:3, mod(i, 4)+1)-locpoints(1:3, i)
-                        vect=pcont-locpoints(1:3, i)
-                        isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<-tolerance))
-                        i=i+1
-                    end do
-                    if(isin) then
-                        found=.TRUE.
-                    end if
+                lambda=-pl(3)/ul(3)
+                pcont=pl+lambda*ul
+                i=1
+                isin=.TRUE.
+                do while(i<=4 .AND. isin)
+                    side=locpoints(1:3, mod(i, 4)+1)-locpoints(1:3, i)
+                    vect=pcont-locpoints(1:3, i)
+                    isin=(isin .AND. ((vect(1)*side(2)-vect(2)*side(1))<tolerance))
+                    i=i+1
+                end do
+                if(isin) then
+                    found=.TRUE.
                 end if
             end if
         end if

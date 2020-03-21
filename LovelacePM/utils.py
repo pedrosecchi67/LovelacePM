@@ -11,10 +11,13 @@ import os
 
 import toolkit
 
-def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
+def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
     remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False):
     ordir=os.getcwd()
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    if len(afldir)==0:
+	    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    else:
+	    os.chdir(afldir)
     #read arfoil data points from Selig format file
     if ext_append:
         infile=open(afl+'.dat', 'r')
@@ -25,7 +28,8 @@ def read_afl(afl, ext_append=False, header_lines=1, disc=0, strategy=lambda x: (
     lines=alltext.split('\n')
     for i in range(header_lines, len(lines)):
         linelist=lines[i].split()
-        aflpts+=[[float(linelist[0]), float(linelist[1])]]
+        if len(linelist)!=0:
+            aflpts+=[[float(linelist[0]), float(linelist[1])]]
     aflpts=np.array(aflpts)
     if inverse:
         aflpts[:, 1]=-aflpts[:, 1]
@@ -99,6 +103,22 @@ def gen_circdefsect_coords(disc): #present input coordinates for circular defsec
     thetas=np.linspace(-pi, pi, disc)
     return np.vstack((np.sin(thetas), np.cos(thetas))).T
 
+def linear_pts(p1, p2, n, endpoint=False):
+    #function to provide linearly interpolated segments in 2D space, serves as tool for other functions in folder
+    eta=np.linspace(0.0, 1.0, n, endpoint=endpoint)
+    coords=np.array([])
+    for f in eta:
+        coords=np.vstack((coords, (1.0-f)*p1+f*p2))
+    return coords
+
+def elliptic_pts(p1, p2, center, r_x, r_y, th1, th2, n, endpoint=False):
+    #function to provide elliptically interpolated segments in 2D space, serves as tool for other functions in folder
+    thspacing=np.linspace(th1, th2, n, endpoint=endpoint)
+    coords=np.zeros((n, 2))
+    coords[:, 0]=np.sin(thspacing)*r_x+center[0]
+    coords[:, 1]=np.cos(thspacing)*r_y+center[1]
+    return coords
+
 def gen_squaredefsect_coords(disc): #present input coordinates for square defsect
     nside=int(disc/8)
     pts=np.zeros((nside*8, 2))
@@ -119,3 +139,23 @@ def gen_squaredefsect_coords(disc): #present input coordinates for square defsec
     pts[7*nside:8*nside, 1]=-1.0
     
     return pts
+
+def smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20):
+    #coordinates for body.py's smooth coordinate defsect
+    n_low=ldisc
+    n_sides=ldisc
+    n_up=ldisc
+    coords=linear_pts(np.array([0.0, -1.0]), np.array([-length_low, -1.0]), n_low)
+    coords=np.vstack((coords, elliptic_pts(np.array([-length_low, -1.0]), np.array([-1.0, r_1y-1.0]), np.array([r_1x-1.0, r_1y-1.0]), r_1x, r_1y, -pi, -pi/2, \
+        thdisc)))
+    coords=np.vstack((coords, linear_pts(np.array([-1.0, r_1y-1.0]), np.array([-1.0, 1.0-r_2y]), n_sides)))
+    coords=np.vstack((coords, elliptic_pts(np.array([-1.0, 1.0-r_2y]), np.array([r_2x-1.0, 1.0]), np.array([r_1x-1.0, 1.0-r_2y]), r_2x, r_2y, -pi/2, 0.0, \
+        thdisc)))
+    coords=np.vstack((coords, linear_pts(np.array([r_2x-1.0, 1.0]), np.array([1.0-r_2x, 1.0]), n_up)))
+    coords=np.vstack((coords, elliptic_pts(np.array([1.0-r_2x, 1.0]), np.array([1.0, 1.0-r_2y]), np.array([1.0-r_2x, 1.0-r_2y]), r_2x, r_2y, 0.0, pi/2, \
+        thdisc)))
+    coords=np.vstack((coords, linear_pts(np.array([1.0, 1.0-r_2y]), np.array([1.0, r_1y-1.0]), n_sides)))
+    coords=np.vstack((coords, elliptic_pts(np.array([1.0, r_1y-1.0]), np.array([1.0-r_1x, -1.0]), np.array([1.0-r_1x, r_1y-1.0]), r_1x, r_1y, pi/2, pi, \
+        thdisc)))
+    coords=np.vstack((coords, linear_pts(np.array([1.0-r_1x, -1.0]), np.array([0.0, -1.0]), n_low, endpoint=True)))
+    return coords
