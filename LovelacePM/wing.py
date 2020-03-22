@@ -173,7 +173,7 @@ class wing_quadrant: #wing region between two airfoil sections
             plt.show()
     def hascontrol(self): #call to wing_section.hascontrol()
         return hasattr(self, 'controls')
-    def patchcompose(self, prevlines={}, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, ldisc=20):
+    def patchcompose(self, prevlines={}, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, ldisc=20, tolerance=5e-5):
         #controlset:
         #variable including all control DOFs in aircraft object
         #code for prevlines: 'intra_left', 'intra_right', 'extra_...
@@ -264,7 +264,7 @@ class wing_quadrant: #wing region between two airfoil sections
             prev['right']=prevlines['extra_right']
         if 'extra_left' in prevlines:
             prev['left']=prevlines['extra_left']
-        horzlines, vertlines, paninds, points=self.sld.addpatch(extrasld, prevlines=prev)
+        horzlines, vertlines, paninds, points=self.sld.addpatch(extrasld, prevlines=prev, tolerance=tolerance)
         self.panstrips_extra=[[paninds[i][j] for i in range(len(paninds))] for j in range(len(paninds[0]))]
         self.paninds=[]
         for panlist in paninds:
@@ -285,7 +285,7 @@ class wing_quadrant: #wing region between two airfoil sections
             prev['left']=prevlines['intra_right']
         if 'intra_left' in prevlines:
             prev['right']=prevlines['intra_left']
-        horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'])
+        horzlines, vertlines, paninds, points=self.sld.addpatch(intrasld, prevlines=prev, invlats=['up', 'low'], tolerance=tolerance)
         self.panstrips_intra=[[paninds[i][j] for i in range(len(paninds))] for j in range(len(paninds[0])-1, -1, -1)]
         for panlist in paninds:
             self.paninds+=panlist
@@ -487,7 +487,7 @@ class wing:
         self.rightclosed=False
         axial_vec=wingquads[0].sect1.CA_position-wingquads[-1].sect2.CA_position
         self.axis=np.argmax(np.abs(axial_vec[1:3]))+1
-    def patchcompose(self, ystrategy=lambda x: x, ydisc=20):
+    def patchcompose(self, ystrategy=lambda x: x, ydisc=20, tolerance=5e-5):
         if type(ydisc)==list: #use as list if list is provided, specifying each of the quadrants
             trimlist(len(self.wingquads), ydisc)
         else: #distribute between quadrants proportionally to distance between quadrant section CAs if integer
@@ -504,11 +504,11 @@ class wing:
         #generate patches one by one
         
         #first patch
-        self.wingquads[0].patchcompose(strategy=ystrategy, ldisc=ydisc[0])
+        self.wingquads[0].patchcompose(strategy=ystrategy, ldisc=ydisc[0], tolerance=tolerance)
         #all other patches
         for i in range(1, len(self.wingquads)):
             self.wingquads[i].patchcompose(prevlines={'intra_left':self.wingquads[i-1].intraright_lines, 'extra_left':self.wingquads[i-1].extraright_lines}, \
-                strategy=ystrategy, ldisc=ydisc[i])
+                strategy=ystrategy, ldisc=ydisc[i], tolerance=tolerance)
 
         self.extraleft_lines=self.wingquads[0].extraleft_lines
         self.extraright_lines=self.wingquads[-1].extraright_lines

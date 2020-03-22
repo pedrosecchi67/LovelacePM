@@ -31,7 +31,7 @@ sld=Solid()
 #generating xfoil corrected polars
 n4412_polar=polar_correction(name='n4412')
 
-fuselage=standard_body(sld, defsect=squaredefsect, body_thdisc=50, body_width=fuselage_width, nose_loc=np.array([-fuselage_aftlen, 0.0, -0.01]))
+fuselage=standard_body(sld, defsect=circdefsect, body_thdisc=50, body_width=fuselage_width, nose_loc=np.array([-fuselage_aftlen, 0.0, -0.01]))
 
 sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/nu, closed=True)
 sect2=wing_section(CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/nu)
@@ -77,7 +77,7 @@ fuselage.patchcompose(leftqueue=[wing_left], rightqueue=[wing_right], xdisc=60, 
 #sld.genwakepanels(wakecombs=wingquad_left.wakecombs+wingquad_right.wakecombs, wakeinds=[[0, 0]], a=a)
 acft.edit_parameters({'a':a, 'Uinf':Uinf})
 acft.addwake()
-#sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 acft.bodies_eqflatplate_apply(rho=rho, nu=nu)
 acft.eulersolve()
 acft.forces_report()

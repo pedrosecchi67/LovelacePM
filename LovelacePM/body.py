@@ -76,14 +76,14 @@ def prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False):
             linelist+=[prevlateral[j] for j in range(len(linelist), nlines[i]+len(linelist))]
         if intra:
             if right:
-                linelist+=queue[i].intraright_lines
+                linelist+=queue[-i-1].intraright_lines
             else:
-                linelist+=queue[i].intraleft_lines
+                linelist+=queue[-i-1].intraleft_lines
         else:
             if right:
-                linelist+=queue[i].extraright_lines
+                linelist+=queue[-i-1].extraright_lines
             else:
-                linelist+=queue[i].extraleft_lines
+                linelist+=queue[-i-1].extraleft_lines
     if len(prevlateral)==0:
         linelist+=nlines[-1]*[-2]
     else:
@@ -95,21 +95,19 @@ class body: #body definition class for center definition to obtain polar cooridi
     #to be abutted stern to bow, clockwise when seen from the aircraft's bow
     def set_aircraft(self, acft):
         self.acft=acft #define aircraft structure related to instance
-    def __init__(self, sld, sections=[], tolerance=0.00005, cubic=True):
+    def __init__(self, sld, sections=[], tolerance=0.00005):
         self.sld=sld
         self.tolerance=tolerance
         self.sections=sections
         self.sect_xpos=np.array([sect.center[0] for sect in sections])
-        if cubic:
-            centerfunc_y=sinterp.CubicSpline(self.sect_xpos, [sect.center[1] for sect in sections])
-            centerfunc_z=sinterp.CubicSpline(self.sect_xpos, [sect.center[2] for sect in sections])
-        else:
-            centerfunc_y=sinterp.interp1d(self.sect_xpos, [sect.center[1] for sect in sections])
-            centerfunc_z=sinterp.interp1d(self.sect_xpos, [sect.center[2] for sect in sections])
+        centerfunc_y=sinterp.interp1d(self.sect_xpos, [sect.center[1] for sect in sections])
+        centerfunc_z=sinterp.interp1d(self.sect_xpos, [sect.center[2] for sect in sections])
         self.center=lambda x: np.vstack((x, centerfunc_y(x), centerfunc_z(x)))
         self.body_panels=[]
         self.last_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='previous')
         self.next_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='next')
+        self.y_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.y_expand for sect in self.sections]))
+        self.z_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.z_expand for sect in self.sections]))
         for i in range(len(self.sections)-1):
             for j in range(np.size(self.sections[i].coords, 0)-1):
                 self.body_panels+=[body_panel(self.sections[i].coords[j, :], \
@@ -130,6 +128,7 @@ class body: #body definition class for center definition to obtain polar cooridi
         order=np.array([0, 1, 2, 3, 0])
         for p in self.body_panels:
             ax.plot3D(p.points[0, order], p.points[1, order], p.points[2, order], colour)
+
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
         if len(ylim)!=0:
@@ -200,66 +199,74 @@ class body: #body definition class for center definition to obtain polar cooridi
 
         #left wing side
         lxdisc=[]
-        for surf in leftqueue:
-            lxdisc+=[surf.extraright_points[len(surf.extraright_points)-1-i][0] for i in range(len(surf.extraright_points)-1)]
         lnlines=[]
         for i in range(len(lxlims)-1):
             lnlines+=[floor(np.interp(lxlims[i][1]-lxlims[i][0], np.array([0.0, ltotal]), np.array([0, xdisc])))]
-        lnlines+=[xdisc-len(lxdisc)-sum(lnlines)]
-        for i in range(len(lxlims)-1):
-            lxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, lnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(lxlims[i])))
-        lxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, lnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(lxlims[-1])))
-        lxdisc.sort()
-        lxdisc.reverse()
+        lnlines+=[xdisc-sum([len(surf.extraright_lines) for surf in leftqueue])-sum(lnlines)]
         lnlines.reverse()
+        lxlims.reverse()
+        for sind in range(len(leftqueue)-1, -1, -1):
+            i=len(leftqueue)-1-sind
+            lxlims[i].reverse()
+            surf=leftqueue[sind]
+            lxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, lnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(lxlims[i])))
+            lxdisc+=[surf.extraright_points[i][0] for i in range(len(surf.extraright_points)-1)]
+        lxlims[-1].reverse()
+        lxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, lnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(lxlims[-1])))
         lxdisc=np.array(lxdisc)
 
         #right wing side
         rxdisc=[]
-        for surf in rightqueue:
-            rxdisc+=[surf.extraleft_points[len(surf.extraleft_points)-1-i][0] for i in range(len(surf.extraleft_points)-1)]
         rnlines=[]
         for i in range(len(rxlims)-1):
             rnlines+=[floor(np.interp(rxlims[i][1]-rxlims[i][0], np.array([0.0, ltotal]), np.array([0, xdisc])))]
-        rnlines+=[xdisc-len(rxdisc)-sum(rnlines)]
-        for i in range(len(rxlims)-1):
-            rxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, rnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(rxlims[i])))
-        rxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, rnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(rxlims[-1])))
-        rxdisc.sort()
-        rxdisc.reverse()
+        rnlines+=[xdisc-sum([len(surf.extraleft_lines) for surf in rightqueue])-sum(rnlines)]
         rnlines.reverse()
+        rxlims.reverse()
+        for sind in range(len(rightqueue)-1, -1, -1):
+            i=len(rightqueue)-1-sind
+            rxlims[i].reverse()
+            surf=rightqueue[sind]
+            rxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, rnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(rxlims[i])))
+            rxdisc+=[surf.extraleft_points[i][0] for i in range(len(surf.extraleft_points)-1)]
+        rxlims[-1].reverse()
+        rxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, rnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(rxlims[-1])))
         rxdisc=np.array(rxdisc)
 
         #upper fin side
         uxdisc=[]
-        for surf in upqueue:
-            uxdisc+=[surf.extraright_points[len(surf.extraright_points)-1-i][0] for i in range(len(surf.extraright_points)-1)]
         unlines=[]
         for i in range(len(uxlims)-1):
             unlines+=[floor(np.interp(uxlims[i][1]-uxlims[i][0], np.array([0.0, ltotal]), np.array([0, xdisc])))]
-        unlines+=[xdisc-len(uxdisc)-sum(unlines)]
-        for i in range(len(uxlims)-1):
-            uxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, unlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(uxlims[i])))
-        uxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, unlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(uxlims[-1])))
-        uxdisc.sort()
-        uxdisc.reverse()
+        unlines+=[xdisc-sum([len(surf.extraright_lines) for surf in upqueue])-sum(unlines)]
         unlines.reverse()
+        uxlims.reverse()
+        for sind in range(len(upqueue)-1, -1, -1):
+            i=len(upqueue)-1-sind
+            uxlims[i].reverse()
+            surf=upqueue[sind]
+            uxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, unlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(uxlims[i])))
+            uxdisc+=[surf.extraright_points[i][0] for i in range(len(surf.extraright_points)-1)]
+        uxlims[-1].reverse()
+        uxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, unlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(uxlims[-1])))
         uxdisc=np.array(uxdisc)
 
         #lower fin side
         dxdisc=[]
-        for surf in lowqueue:
-            dxdisc+=[surf.extraleft_points[len(surf.extraleft_points)-1-i][0] for i in range(len(surf.extraleft_points)-1)]
         dnlines=[]
         for i in range(len(dxlims)-1):
             dnlines+=[floor(np.interp(dxlims[i][1]-dxlims[i][0], np.array([0.0, ltotal]), np.array([0, xdisc])))]
-        dnlines+=[xdisc-len(dxdisc)-sum(dnlines)]
-        for i in range(len(dxlims)-1):
-            dxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, dnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(dxlims[i])))
-        dxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, dnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(dxlims[-1])))
-        dxdisc.sort()
-        dxdisc.reverse()
+        dnlines+=[xdisc-sum([len(surf.extraleft_lines) for surf in lowqueue])-sum(dnlines)]
         dnlines.reverse()
+        dxlims.reverse()
+        for sind in range(len(lowqueue)-1, -1, -1):
+            i=len(lowqueue)-1-sind
+            dxlims[i].reverse()
+            surf=lowqueue[sind]
+            dxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, dnlines[i], endpoint=False)), np.array([0.0, 1.0]), np.array(dxlims[i])))
+            dxdisc+=[surf.extraleft_points[i][0] for i in range(len(surf.extraleft_points)-1)]
+        dxlims[-1].reverse()
+        dxdisc+=list(np.interp(xstrategy(np.linspace(0.0, 1.0, dnlines[-1]+1, endpoint=True)), np.array([0.0, 1.0]), np.array(dxlims[-1])))
         dxdisc=np.array(dxdisc)
 
         return lnlines, lxdisc, rnlines, rxdisc, unlines, uxdisc, dnlines, dxdisc
@@ -299,8 +306,7 @@ class body: #body definition class for center definition to obtain polar cooridi
             thetas+=[pi]
         
         #queued wing quadrants
-        qaux=queue
-        qaux.reverse()
+        qaux=[queue[-1-i] for i in range(len(queue))]
         for surf in qaux:
             if intra:
                 if right:
@@ -313,7 +319,9 @@ class body: #body definition class for center definition to obtain polar cooridi
                 else:
                     surfpts=surf.extraleft_points
             xposit+=[pt[0] for pt in surfpts]
-            thetas+=[toolkit.pointarg(self.center(pt[0]), pt) for pt in surfpts]
+            #thetas+=[toolkit.pointarg(self.center(pt[0]), pt) for pt in surfpts]
+            thetas+=[atan2((pt[1]-self.center(pt[0])[1])/self.y_expand_rule(pt[0]), (pt[2]-self.center(pt[0])[2])/self.z_expand_rule(pt[0])) \
+                for pt in surfpts]
 
         #stern
         xposit+=[xspacing[-1]]
@@ -329,8 +337,8 @@ class body: #body definition class for center definition to obtain polar cooridi
         thx=sinterp.interp1d(xposit, thetas) #change this later to np.interp if you can
 
         return thx(xspacing)
-    def patchcompose(self, leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, xdisc=100, \
-        thstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, thdisc_upleft=20, thdisc_upright=20, thdisc_downleft=20, thdisc_downright=20):
+    def patchcompose(self, leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: x, xdisc=100, \
+        thstrategy=lambda x: x, thdisc_upleft=20, thdisc_upright=20, thdisc_downleft=20, thdisc_downright=20, tolerance=5e-5):
         #function to generate patch to add panels belonging to fuselage. Queues designate abutted surfaces at a certain point
         #in the surface (e. g. upqueue to vertical fin, leftqueue to left wing (wing 1)...)
         #must be ran AFTER abutted wings's 'patchcompose's.
@@ -344,7 +352,7 @@ class body: #body definition class for center definition to obtain polar cooridi
         for i in range(len(lxdisc)):
             ptpatch+=[self.line_surfinterp(uxdisc[i], lxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upleft)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(leftqueue, lnlines, prevlateral=[], intra=False, right=True), \
-            'right':prevline_organize(upqueue, unlines, prevlateral=[], intra=True, right=True)})
+            'right':prevline_organize(upqueue, unlines, prevlateral=[], intra=True, right=True)}, tolerance=tolerance)
         uplat=[linerow[0] for linerow in vertlines]
         self.paninds=[]
         for panlist in paninds:
@@ -357,7 +365,7 @@ class body: #body definition class for center definition to obtain polar cooridi
         for i in range(len(lxdisc)):
             ptpatch+=[self.line_surfinterp(lxdisc[i], dxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downleft)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(lowqueue, dnlines, prevlateral=[], intra=True, right=False), \
-            'right':prevline_organize(leftqueue, lnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=True, right=True)})
+            'right':prevline_organize(leftqueue, lnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=True, right=True)}, tolerance=tolerance)
         for panlist in paninds:
             self.paninds+=panlist
         
@@ -368,7 +376,7 @@ class body: #body definition class for center definition to obtain polar cooridi
         for i in range(len(lxdisc)):
             ptpatch+=[self.line_surfinterp(dxdisc[i], rxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downright)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(rightqueue, rnlines, prevlateral=[], intra=True, right=False), \
-            'right':prevline_organize(lowqueue, dnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)})
+            'right':prevline_organize(lowqueue, dnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
         for panlist in paninds:
             self.paninds+=panlist
         
@@ -379,7 +387,7 @@ class body: #body definition class for center definition to obtain polar cooridi
         for i in range(len(lxdisc)):
             ptpatch+=[self.line_surfinterp(rxdisc[i], uxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upright)]
         horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(upqueue, unlines, prevlateral=uplat, intra=False, right=True), \
-            'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)})
+            'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
         for panlist in paninds:
             self.paninds+=panlist
     def apply_eqflatplate(self, rho=1.225, Uinf=1.0, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
@@ -419,9 +427,11 @@ def squaredefsect(R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360,
     #discretization necessities
     return body_section(coords=gen_squaredefsect_coords(disc), y_expand=y_expand, z_expand=z_expand, R=R, center=center, cubic=cubic)
 
-def smooth_angle_defsect(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5):
+def smooth_angle_defsect_function(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5, ldisc=30, thdisc=20): #COMPLETE ME LATER
     #defsect with elliptic concordances on edges
-    pass
+    return lambda R=1.0, center=np.array([0.0, 0.0, 0.0]), y_expand=1.0, z_expand=1.0: \
+        body_section(R=R, center=center, z_expand=z_expand, y_expand=y_expand, coords=\
+            smooth_angle_defsect_coords(r_1x=r_1x, r_1y=r_1y, r_2x=r_2x, r_2y=r_2y, ldisc=ldisc, thdisc=thdisc))
 
 def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), nose_length=0.1, nose_thdisc=10, body_length=1.0, \
     body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \

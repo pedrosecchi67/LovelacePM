@@ -27,6 +27,7 @@ class Solid:
         self.panels=[]
         self.lines=[]
         self.addto=[]
+        self.problematic=[]
         self.npanels=0
         self.nlines=0
         self.nwake=0 #number of wake panels
@@ -205,7 +206,7 @@ class Solid:
         if ind>0:
             return self.lines[ind-1, :, :]
         else:
-            return self.lines[-1-ind, :, np.array([1, 0])]
+            return np.flip(self.lines[-1-ind, :, :], axis=1)
     def line_getvec(self, ind): #return vector linking points in line
         if ind>0:
             return self.lines[ind-1, :, 1]-self.lines[ind-1, :, 0]
@@ -244,7 +245,21 @@ class Solid:
                         self.panels[i].lines[lind]*=-1
                         print('WARNING: line '+str(abs(self.panels[i].lines[lind])-1)+' in panel '+\
                             str(i)+' had to be inverted. Please check integrity of patchcompose() functions')
-    def end_preprocess(self, paninds=[], tolerance=0.00005): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
+                        self.problematic+=[abs(l)-1 for l in self.panels[i].lines]
+    def iscontiguous(self, patchinds=[], tolerance=5e-5): #check if all panels in solid are closed quadrilaterals
+        if len(patchinds)==0:
+            patchinds=[list(range(self.npanels))]
+        for patchlist in patchinds:
+            for i in patchlist:
+                u=self.line_getcoords(self.panels[i].lines[0])
+                for lind in range(1, len(self.panels[i].lines)):
+                    v=u
+                    u=self.line_getcoords(self.panels[i].lines[lind])
+                    if np.amax(np.abs(v[:, 1]-u[:, 0]))>tolerance:
+                        print('WARNING: '+str(i)+' panel is not contiguous')
+                        self.problematic+=[abs(l)-1 for l in self.panels[i].lines]
+                        break
+    def end_preprocess(self, paninds=[], tolerance=5e-5): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
         #consequences may arise if done otherwise
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
@@ -295,6 +310,7 @@ class Solid:
         self.moments=[]
         #adjust lines in case any is set inconsistently with respect to anti-clockwise convention in panel
         self.lineadjust()
+        #self.iscontiguous(tolerance=tolerance)
     def gen_panline(self): #generate panel-line correspondence matrix
         self.panline_matrix=np.zeros((self.nlines, self.npanels), dtype='double')
         for i in range(self.npanels):
@@ -421,6 +437,8 @@ class Solid:
         ax=plt.axes(projection='3d')
         for i in range(self.nlines):
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
+        for i in self.problematic:
+            ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
         if self.solavailable and velfield:
             '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
                 [p.colpoint[2] for p in self.panels], [p.nvector[0]*0.005 for p in self.panels], \
@@ -436,6 +454,7 @@ class Solid:
             ax.set_ylim3d(ylim[0], ylim[1])
         if len(zlim)!=0:
             ax.set_zlim3d(zlim[0], zlim[1])
+        ax.view_init(azim=-135, elev=30)
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
@@ -459,12 +478,14 @@ class Solid:
             ax.set_ylim3d(ylim[0], ylim[1])
         if len(zlim)!=0:
             ax.set_zlim3d(zlim[0], zlim[1])
+        ax.view_init(azim=-135, elev=30)
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
     def eulersolve(self, target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True):
         if echo:
             print('========Euler solution=======')
+            print(self.npanels, ' panels')
         t=tm.time()
         self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
         self.gennvv()

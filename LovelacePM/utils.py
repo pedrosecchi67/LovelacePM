@@ -106,9 +106,9 @@ def gen_circdefsect_coords(disc): #present input coordinates for circular defsec
 def linear_pts(p1, p2, n, endpoint=False):
     #function to provide linearly interpolated segments in 2D space, serves as tool for other functions in folder
     eta=np.linspace(0.0, 1.0, n, endpoint=endpoint)
-    coords=np.array([])
-    for f in eta:
-        coords=np.vstack((coords, (1.0-f)*p1+f*p2))
+    coords=np.zeros((n, 2))
+    for i in range(n):
+        coords[i, :]=(1.0-eta[i])*p1+eta[i]*p2
     return coords
 
 def elliptic_pts(p1, p2, center, r_x, r_y, th1, th2, n, endpoint=False):
@@ -145,8 +145,8 @@ def smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20):
     n_low=ldisc
     n_sides=ldisc
     n_up=ldisc
-    coords=linear_pts(np.array([0.0, -1.0]), np.array([-length_low, -1.0]), n_low)
-    coords=np.vstack((coords, elliptic_pts(np.array([-length_low, -1.0]), np.array([-1.0, r_1y-1.0]), np.array([r_1x-1.0, r_1y-1.0]), r_1x, r_1y, -pi, -pi/2, \
+    coords=linear_pts(np.array([0.0, -1.0]), np.array([r_1x-1.0, -1.0]), n_low)
+    coords=np.vstack((coords, elliptic_pts(np.array([r_1x-1.0, -1.0]), np.array([-1.0, r_1y-1.0]), np.array([r_1x-1.0, r_1y-1.0]), r_1x, r_1y, -pi, -pi/2, \
         thdisc)))
     coords=np.vstack((coords, linear_pts(np.array([-1.0, r_1y-1.0]), np.array([-1.0, 1.0-r_2y]), n_sides)))
     coords=np.vstack((coords, elliptic_pts(np.array([-1.0, 1.0-r_2y]), np.array([r_2x-1.0, 1.0]), np.array([r_1x-1.0, 1.0-r_2y]), r_2x, r_2y, -pi/2, 0.0, \

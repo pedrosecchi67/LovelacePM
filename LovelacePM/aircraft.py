@@ -57,26 +57,27 @@ class aircraft: #class to ease certain case studies for full aircraft
             print('===========================')
     def transp_byvec(self, vec): #transport pre-calculated forces by a 'vec' deallocation in CG
         mom_transp=np.cross(vec, np.array([self.CX, self.CY, self.CZ]))
-        self.Cl+=mom_transp[0]/self.bref
-        self.Cm+=mom_transp[1]/self.cref
-        self.Cn+=mom_transp[2]/self.bref
+        self.Cl-=mom_transp[0]/self.bref
+        self.Cm-=mom_transp[1]/self.cref
+        self.Cn-=mom_transp[2]/self.bref
         if self.stabavailable:
             pars=['a', 'b', 'p', 'q', 'r']
             for par in pars:
                 dmom_transp=np.cross(vec, np.array([self.stabderivative_dict[par]['dCX'], self.stabderivative_dict[par]['dCY'], \
                     self.stabderivative_dict[par]['dCZ']]))
-                self.stabderivative_dict[par]['dCl']+=dmom_transp[0]/self.bref
-                self.stabderivative_dict[par]['dCm']+=dmom_transp[1]/self.cref
-                self.stabderivative_dict[par]['dCn']+=dmom_transp[2]/self.bref
+                self.stabderivative_dict[par]['dCl']-=dmom_transp[0]/self.bref
+                self.stabderivative_dict[par]['dCm']-=dmom_transp[1]/self.cref
+                self.stabderivative_dict[par]['dCn']-=dmom_transp[2]/self.bref
         if self.hascorrections:
             mom_transp=np.cross(vec, np.array([self.dCX, self.dCY, self.dCZ]))
-            self.dCl+=mom_transp[0]/self.bref
-            self.dCm+=mom_transp[1]/self.cref
-            self.dCn+=mom_transp[2]/self.bref
+            self.dCl-=mom_transp[0]/self.bref
+            self.dCm-=mom_transp[1]/self.cref
+            self.dCn-=mom_transp[2]/self.bref
     def transp_to_cg(self, CG):
         self.transp_byvec(-self.CG)
         self.transp_byvec(CG)
-    def __init__(self, sld, elems=[], Sref=0.0, cref=0.0, bref=0.0, echo=True):
+        self.CG=CG
+    def __init__(self, sld, elems=[], Sref=0.0, cref=0.0, bref=0.0, echo=True, CG=np.array([0.0, 0.0, 0.0])):
         self.wings=[]
         self.bodies=[]
         for e in elems:
@@ -114,7 +115,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.r=0.0
         self.Uinf=1.0
 
-        self.CG=np.array([0.0, 0.0, 0.0])
+        self.CG=CG
         
         #defining available controls
         self.controlset={}
@@ -165,7 +166,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.sld.end_preprocess()
         for wng in self.wings:
             wng.genwakepanels(offset=offset, a=self.a, b=self.b)
-    def calcforces(self, echo=True, CG=np.array([0.0, 0.0, 0.0]), custCp=np.array([])):
+    def calcforces(self, echo=True, custCp=np.array([])):
         self.CX=sum([self.sld.forces[i][0] for i in range(self.sld.npanels)])/self.Sref
         self.CY=sum([self.sld.forces[i][1] for i in range(self.sld.npanels)])/self.Sref
         self.CZ=sum([self.sld.forces[i][2] for i in range(self.sld.npanels)])/self.Sref
@@ -194,10 +195,11 @@ class aircraft: #class to ease certain case studies for full aircraft
             self.dCL=adforces@v
             self.dCD=adforces@u
         
-        self.transp_to_cg(CG)
+        self.transp_byvec(self.CG)
 
         if echo:
             self.forces_report()
+        self.forcesavailable=True
     def freestream_derivative(self, par='a'): #definition of derivative of freestream velocity vectors u and v (normal vectors)
         if par=='a':
             du=np.array([-sin(self.a)*cos(self.b), -sin(self.b)*sin(self.a), cos(self.a)])
@@ -212,6 +214,8 @@ class aircraft: #class to ease certain case studies for full aircraft
     def calcstab(self, echo=True):
         #calculate variation on Cps in respect to several parameters
         pars=['a', 'b', 'p', 'q', 'r']
+        if self.forcesavailable:
+            self.transp_byvec(-self.CG)
         self.stabderivative_dict={}
         orforces=np.array([self.CX, self.CY, self.CZ])
         for p in pars:
