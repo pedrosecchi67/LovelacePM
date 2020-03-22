@@ -434,7 +434,7 @@ def smooth_angle_defsect_function(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5, ldisc=
             smooth_angle_defsect_coords(r_1x=r_1x, r_1y=r_1y, r_2x=r_2x, r_2y=r_2y, ldisc=ldisc, thdisc=thdisc))
 
 def standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), nose_length=0.1, nose_thdisc=10, body_length=1.0, \
-    body_width=0.1, tailcone_length=0.2, body_thdisc=60, cubic=False, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \
+    body_width=0.1, tailcone_length=0.2, body_thdisc=60, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \
 y_expand=1.0):
     #standard body: semi-ellipsoid head, straight cylindric body and conventional tailcone, all along x axis
     sects=[]
@@ -459,5 +459,5 @@ y_expand=1.0):
     zs=np.interp(np.array(xs), np.array([0.0, nose_length, body_length-tailcone_length, body_length]), np.array(zs))
 
     for i in range(len(xs)):
-        sects+=[defsect(z_expand=z_expand, y_expand=y_expand, R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, zs[i]]), cubic=cubic, disc=body_thdisc)]
-    return body(sld, sections=sects, tolerance=tolerance, cubic=cubic)
+        sects+=[defsect(z_expand=z_expand, y_expand=y_expand, R=Rs[i], center=nose_loc+np.array([xs[i], 0.0, zs[i]]), disc=body_thdisc)]
+    return body(sld, sections=sects, tolerance=tolerance)

@@ -15,7 +15,8 @@ def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=
     remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False):
     ordir=os.getcwd()
     if len(afldir)==0:
-	    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+	    os.chdir(ordir)
+        #os.chdir(os.path.dirname(os.path.abspath(__file__)))
     else:
 	    os.chdir(afldir)
     #read arfoil data points from Selig format file
@@ -74,7 +75,7 @@ def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=
 
 def wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0):
     #position airfoil coordinate in 3D axis system
-    R=np.array([[cos(gamma), sin(gamma), 0.0], [-sin(gamma), cos(gamma), 0.0], [0.0, 0.0, 1.0]])
+    R=np.array([[1.0, 0.0, 0.0], [0.0, cos(gamma), -sin(gamma)], [0.0, sin(gamma), cos(gamma)]])
     aflnew=(R@np.vstack((afl[:, 0]*c, np.zeros(np.size(afl, 0)), afl[:, 1]*c))).T
     aflnew[:, 1]+=ypos
     aflnew[:, 2]+=zpos
