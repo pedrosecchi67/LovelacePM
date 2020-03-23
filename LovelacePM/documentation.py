@@ -1,5 +1,6 @@
 import paneller
 import utils
+import control
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
@@ -205,3 +206,76 @@ utils.gen_circdefsect_coords.__doc__='''gen_circdefsect_coords(disc): returns po
 utils.gen_squaredefsect_coords.__doc__='''gen_squaredefsect_coords(disc): returns points for body.squaredefsect default body section, with goven input panel discretization'''
 utils.smooth_angle_defsect_coords.__doc__='''smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20): returns coordinates for body.smooth_angle_defsect function, with given semi-ellipsoid
 concordance radii r_1x (lower, x-axis), r_2x (upper, x-axis), r_1y and r_2y'''
+
+control.__doc__='''
+Module for definition of controls, control axes and degrees of freedom for aicraft and wing classes.
+
+=========
+functions
+=========
+
+z_rotation_matrix
+
+=======
+classes
+=======
+
+control_DOF: class to contain a degree of freedom controllable from aircraft class methods, to control deflection in one or more control axis
+control_axis: class contaning a control axis and its rotation method, to rotate panels in wing class and Solid class
+control: a general control definition, containing an axis, a correspondent degree of freedom and a multiplier for the given DOF to be applied to control deflection'''
+
+control.z_rotation_matrix.__doc__='''z_rotation_matrix(th): to return a rotation matrix of angle th (radians) around z axis'''
+control.control_DOF.__doc__='''
+Class to model a given degree of freedom, as called from aircraft class instance
+
+=========
+variables
+=========
+
+state: numerical value for control deflection, controlled from aircraft instance
+
+=======
+methods
+=======
+
+__init__
+'''
+control.control_DOF.__init__.__doc__='''__init__(): initializes control_DOF instance with zero deflection'''
+control.control_axis.__doc__='''
+Class to define an axis around which to rotate controlled panels
+
+=========
+variables
+=========
+
+control_rot_func: lambda to compute rotation of a point around given control axis
+
+=======
+methods
+=======
+
+__init__
+'''
+control.control_axis.__init__.__doc__='''__init__(self, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0])): instantiate a control axis defined between points p0 and p1'''
+control.control.__doc__='''
+Class to be added to wing quadrants and controlled from aircraft instance
+
+=========
+variables
+=========
+
+DOF: degree of freedom (control_DOF instance) to be controlled externally, from aircraft instance
+axis: control_axis instance
+multiplier: multiplier for control deflections
+paninds: index of panels rotated by given control
+
+=======
+methods
+=======
+
+__init__
+addpanels
+'''
+control.control.__init__.__doc__='''__init__(DOF=None, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0]), multiplier=1.0): instantiate control
+with controlling DOF in DOF kwarg, with axis defined between points p0 and p1, with multiplier in multiplier kwarg'''
+control.control.addpanels.__doc__='''addpanels(self, panlist): adds panels listed in index list panlist to control.paninds list of rotated panels\'s indexes'''
