@@ -361,6 +361,9 @@ acft: aircraft instance to which the quadrant is bound
 controls: if present (check reference for wing_quadrant.hascontrol()), a dictionary containing panel objects in quadrant with keys correspondent to names set in aircraft instance
 sect1_control_indlist: control panel index matrix as in class wing_section, for section 1 (left/upper)
 sect2_control_indlist: control panel index matrix as in class wing_section, for section 2 (right/lower)
+extraright, extraleft, intraright, intraleft_lines: lists of line unsigned indexes identifying which elements are positioned in the quadrant\'s extremities
+extraright, extraleft, intraright, intraleft_points: lists of point arrays identifying which elements are positioned in the quadrant\'s extremities
+ys, cs, Cls, Cms, Cds, Cls_corrected, Cds_corrected, Cms_corrected: geometrical position of measured panel strips and correspondent sectional adimensional coefficients
 
 =======
 methods
@@ -403,3 +406,55 @@ in wing\'s axis (if axis==2, note that alpha should be interpreted as a sideslip
 wing.wing_quadrant.hascorrection.__doc__='''hascorrection(): returns whether both wing quadrant sections have viscous corrections for application'''
 wing.wing_quadrant.calc_corrected_forces.__doc__='''calc_corrected_forces(): calculate corrections for sectional forces based on each edge section\'s available viscous corrections.
 Returns variations in coefficients return dCX, dCY, dCZ, dCl, dCm, dCn integrated along wing quadrant'''
+
+wing.wing.__doc__='''
+Class to model a whole wing through calls to methods of several queued wing quadrants
+
+=========
+variables
+=========
+
+sld: Solid instance to which the wing is bound
+coefavailable: whether or not sectional coefficients have been calculated in the extent of the wing
+wingquads: list of wing quadrants, from left/up to right/down
+axis: the axis to which the wing is closest to allign to
+acft: aircraft object to which the wing is bound
+extraright, extraleft, intraright, intraleft_lines: lists of line unsigned indexes identifying which elements are positioned in the wing\'s extremities
+extraright, extraleft, intraright, intraleft_points: lists of point arrays identifying which elements are positioned in the wing\'s extremities
+paninds: list with all panel indexes belonging to the wing\'s patches
+ys, cs, Cls, Cms, Cds, Cls_corrected, Cds_corrected, Cms_corrected: geometrical position of measured panel strips and correspondent sectional adimensional coefficients
+
+=======
+methods
+=======
+
+__init__
+set_aircraft
+patchcompose
+trim_bybody
+calc_coefs
+calc_reference
+close_tip
+plot_input
+genwakepanels
+hascorrection
+calc_corrected_forces
+'''
+wing.wing.__init__.__doc__='''__init__(sld, wingquads=[]): instantiate wing with its list of wing quadrants (listed left/up to right/down) and its bound solid (sld)'''
+wing.wing.set_aircraft.__doc__='''set_aircraft(acft): sets the wing\'s bound aircraft to acft'''
+wing.wing.patchcompose.__doc__='''patchcompose(ystrategy=lambda x: x, ydisc=20, tolerance=5e-5): compose patches of each wing quadrant in the wing; if ydisc is an integer, discretization is divided
+along the wing according to each quadrant\'s length. Rule yspacing=np.interp(ystrategy(np.linspace(0.0, 1.0, ydisc)), np.array([0.0, 1.0]), np.array([y1, y2])) is used to set spacing of panels across the span.
+If ydisc is a list, it is trimmed by reproducing the first element to the lngth of wing.wingquads, and each element is attributed to the discretization of a wing quadrant (leftmost to rightmost).
+tolerance kwarg is the geometric tolerance for Solid.addpatch() method'''
+wing.wing.trim_bybody.__doc__='''trim_bybody(contactbody, sectside=2, tolerance=5e-5): trim the leftmost/highest wing quadrant (sectside==1) or the rightmost/lowest wing quadrant (sectside==2) so that the wing is limited by contactbody. Check reference
+for wing_quadrant.trim_bybody() for further information'''
+wing.wing.calc_coefs.__doc__='''calc_coefs(alpha=0.0, axis=1): alculate sectional adimensional coefficients along the wing by calling wing_quadrant.calc_coefs() for each and concatenating resulting vectors.
+Check its reference for further detail'''
+wing.wing.calc_reference.__doc__='''calc_reference(): calculates S, mac, b (respectively returned in tuple) of whole wing based on call to wing_quadrant.calc_reference() for each of the component quadrants'''
+wing.wing.close_tip.__doc__='''close_tip(sectside=2): impose limited circulation in wingtip vortex line segments for leftmost/highest section (sectside==1) or rightmost/lowest section (sectside==2)'''
+wing.wing.plot_input.__doc__='''plot_input(fig=None, ax=None, show=False, xlim=[], ylim=[], zlim=[], colour='blue'): plots the wing as a wireframe in axes ax and figure fig. New ones are instantiated if fig==None or ax==None.
+If show is True, plt.show() is ran automatically; otherwise it must be ran externally'''
+wing.wing.genwakepanels.__doc__='''genwakepanels(offset=1000.0, a=0.0, b=0.0): generates wake panels for each wing quadrant, considering freestream parameters and length for wake provided in kwargs'''
+wing.wing.hascorrection.__doc__='''hascorrection(): checks whether all wing quadrants in the wing have been provided with viscous corrections. It is a condition for the application of those corrections
+in coefficient calculations'''
+wing.wing.calc_corrected_forces.__doc__='''calc_corrected_forces(): returns dCX, dCY, dCZ, dCl, dCm, dCn considering viscous corrections'''
