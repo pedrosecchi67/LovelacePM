@@ -343,3 +343,63 @@ positive orientation of z axis)'''
 wing.wing_section.applycontrols.__doc__='''applycontrols(ths, control_inds): applies control deflections in deflection list th (a single float value can also be provided
 for deflecting all controls by the same value) by deflecting the panels listed for each control object by moving the points indexed in section by indexes present in sublists
 of list of lists control_inds'''
+
+wing.wing_quadrant.__doc__='''
+Class containing information and methods for a wing quadrant, defined as the space between to wing sections
+
+=========
+variables
+=========
+
+sld: Solid instance upon whitch to compose the quadrant\'s panel patches
+sect1: left (or upper, if a vertically oriented quadrant) wing section
+sect2: right (or lower, if a vertically oriented quadrant) wing section
+wakecomb: list of lists with panel indexes (respectively upper and lower surface panel indexes) with which to generate the wake on a given panel strip
+panstrips_extra: upper wing surface\'s panel indexes, organized in sublists that contain a given chordwise wing strip
+panstrips_intra: analogous list of lists for the quadrant\'s lower surface
+acft: aircraft instance to which the quadrant is bound
+controls: if present (check reference for wing_quadrant.hascontrol()), a dictionary containing panel objects in quadrant with keys correspondent to names set in aircraft instance
+sect1_control_indlist: control panel index matrix as in class wing_section, for section 1 (left/upper)
+sect2_control_indlist: control panel index matrix as in class wing_section, for section 2 (right/lower)
+
+=======
+methods
+=======
+
+__init__
+set_aircraft
+trim_bybody
+plot_input
+hascontrol
+patchcompose
+calc_reference
+close_tip
+calc_coefs
+hascorrection
+calc_corrected_forces
+'''
+wing.wing_quadrant.__init__.__doc__='''__init__(sld, sect1=None, sect2=None, control_names=[], control_axpercs_x=[], control_axpercs_thickness=[], \
+        control_multipliers=[]): constructor for wing_quadrant class. sect1 and sect2 set correspondent sections in the wing quadrant (by convention:
+        sect1 designates the upper/left section in the quadrant, and sect2, the lower/right section). sld binds the quadrant to the given Solid instance.
+        control_names is a list of strings that designates names to controls defined in quadrant. control_axpercs_x and control_axpercs_thickness are list of lists
+        that define the x and z positions in sect1 and sect2 for the axis\'s extremities: e. g. control_names=['aileron'], control_axercs_x=[[0.7, 0.75]], 
+        control_axpercs_thickness=[[0.5, 0.2]] define a control called aileron whose axis should start at 70 percent chordwise in section 1 and 75 in section 2, and 
+        50 percent thickness on z axis in section 1 and 20 percent in section 2. control_multipliers defines a multiplier for the axis deflection in the given quadrant,
+        in respect to the axis\' DOF variable instantiated within an aircraft object. Check references for control module for further detail. Default multiplier set to 1'''
+wing.wing_quadrant.set_aircraft.__doc__='''set_aircraft(acft): sets wing_quadrant.acft to aircraft instance acft in argument'''
+wing.wing_quadrant.trim_bybody.__doc__='''trim_bybody(contactbody, sectside=2, tolerance=0.00005): drags points in section 1 (setside==1, upper/left) or 2 (setside==2, lower/right)
+until their contact with a body (contactbody) class instance is obtained. Geometrical tolerance is set by the accordingly named kwarg. A warning is issued if any point
+fails to find a point of contact with the given body, and body.patchcompose functions should be executed only after the issue is solved'''
+wing.wing_quadrant.plot_input.__doc__='''plot_input(fig=None, ax=None, show=False, xlim=[], ylim=[], zlim=[], colour='blue'): plot a wireframe for the given wing quadrant, with optional axis
+limits, to a previous figure and set of axes from matplotlib or a newly instantiated one (if ax==None or fig==None). if show=True, plt.show() is ran within this function. Else it should be ran externally'''
+wing.wing_quadrant.hascontrol.__doc__='''hascontrol(): return whether the quadrant in question has any control (i. e. hasattr(self, 'controls'))'''
+wing.wing_quadrant.patchcompose.__doc__='''patchcompose(prevlines={}, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, ldisc=20, tolerance=5e-5): composes patches of panels for bound Solid instance, with y-axis discretization
+ldisc set as np.interp(strategy(np.linspace(0.0, 1.0, ldisc)), np.array([0.0, 1.0]), np.array([sect1.CA_position[1], sect2.CA_position[1]])). Geometric tolerance for Solid.addpatch is set as kwarg tolerance'''
+wing.wing_quadrant.calc_reference.__doc__='''calc_reference(axis=1): calculate wing planar surface of wing quadrant (on xy plane if axis==1 and xz if axis==2) and $\int^{sect2}_{sect1}c^2dy$, returned in tuple in given order'''
+wing.wing_quadrant.close_tip.__doc__='''close_tip(sectside=2): closes wing tip at section 1 (sectside==1, upper/left) or section 2 (sectside==2, lower/right) by enforcing finite circulation around tip vortex lines. Called from
+wing instance\'s patchcompose function'''
+wing.wing_quadrant.calc_coefs.__doc__='''calc_coefs(alpha=0.0, axis=1): calculate sectional coefficients (self.ys, self.cs: geometric properties per section; self.Cls, self.Cds, self.Cms: actual coefficients per section)
+in wing\'s axis (if axis==2, note that alpha should be interpreted as a sideslip angle). Viscous corrections, if present, are readily applied (check self.Cls_corrected, self.Cds...)'''
+wing.wing_quadrant.hascorrection.__doc__='''hascorrection(): returns whether both wing quadrant sections have viscous corrections for application'''
+wing.wing_quadrant.calc_corrected_forces.__doc__='''calc_corrected_forces(): calculate corrections for sectional forces based on each edge section\'s available viscous corrections.
+Returns variations in coefficients return dCX, dCY, dCZ, dCl, dCm, dCn integrated along wing quadrant'''
