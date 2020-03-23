@@ -505,7 +505,7 @@ cubic polar rule, if cubic==True) for body composition'''
 body.smooth_angle_defsect_function.__doc__='''smooth_angle_defsect_function(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5, ldisc=30, thdisc=20): returns a defsect (a lambda function returning 
 a body section according to arguments (y_expand, z_expand, R, center)) with ellipsoidally concordant corners of semi-axis lengths r_1x, r_1y 
 (lower corners\' semi-axis lengths/R, R being the section\'s largest dimension) and r_2x, r_2y (same for upper corners).
-Check LovelacePM.monoplane code for an example of its use'''
+Check monoplane.py code (in LovelacePM package folder: import LovelacePM.monoplane) for an example of its use'''
 body.standard_body.__doc__='''standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), nose_length=0.1, nose_thdisc=10, body_length=1.0, \
     body_width=0.1, tailcone_length=0.2, body_thdisc=60, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \
 y_expand=1.0):
