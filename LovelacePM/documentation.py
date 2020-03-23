@@ -63,10 +63,18 @@ vbar: freestream velocity at each collocation point
 Cfs, Cps: each panel\'s friction and pressure coefficient, respectively
 forces: list of force arrays (shape (3)) acting on each panel
 moments: analog to \'forces\', for moments
+nvv: normal velocity components to all panels, as computed with Solid.end_preprocess()
+panline_matrix: matrix such that solution_line=panline_matrix@solution
+aicm3_line: influence velocity at each collocation point as a result of each vortex line segment\'s vorticity (shape (3, npanels, nlines))
+aicm3: same for each panel (shape (3, npanels, npanels), aicm3[i, :, :]=aicm3_line[i, :, :]@panline_matrix)
+aicm: aerodynamic influence coefficient matrix based on vortex rings and the application of Neumann contour conditions
+selfinf_mat_x, y, z: sparse csr matrixes so that -gradGamma=(selfinf_mat_x@solution_line, selfinf_mat_y@solution_line, selfinf_mat_z@solution_line)
+iaicm: inverse of Solid.aicm, using Thikhonov regularization if non-zero damper argument is provided to Solid.solve
 
 =======
 methods
 =======
+
 __init__
 addpatch
 addline
@@ -79,6 +87,24 @@ line_getvec
 line_midpoint
 nvect_diradjust
 nvect_radadjust
+lineadjust
+iscontiguous
+end_preprocess
+gen_panline
+genaicm
+gen_farfield
+gen_farfield_derivative
+genvbar
+gennvv
+gen_selfinf_mat
+gen_selfinf
+solve
+calcpress
+calcforces
+calc_derivative
+plotgeometry
+plotnormals
+eulersolve
 '''
 
 paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[]): instantiate solid, adding the first patches as their matrixes of point arrays are inserted in list sldlist, and their wrapping directions 
@@ -97,14 +123,46 @@ panel method). invs=[1, 2] can override this by inverting the second and third l
 paneller.Solid.addwakepanel.__doc__='''addwakepanel(refup, refdown, indup=0, indown=2, offsetleft=np.array([1000.0, 0.0, 0.0]), offsetright=np.array([]), tolerance=5e-5): adds wake lines with vectors offsetright
 and offsetleft (if len(offsetleft)==0: offsetleft=offsetright) with upper and lower panel indexes, respectively, refup and refdown (disregarding the panel in question if the index provided is -1).
 indup and indown delimit the index for the TE vortex line segment in panels refup and refdown\'s list \'lines\', respectively. tolerance is the geometrical tolerance provided for Solid.addline'''
-paneller.Solid.genwakepanels.__doc__='''genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0): add wake panels with combinations wakecombs (list of lists, including -1s to disregard upper
+paneller.Solid.genwakepanels.__doc__='''genwakepanels(wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0): add wake panels with combinations wakecombs (list of lists, including -1s to disregard upper
 or lower surface panels) with indup and indown reported in list of lists wakeinds, to be trimmed to the same length of wakecombs with default values indup=0, indown=2'''
-paneller.Solid.panel_getcoords.__doc__='''panel_getcoords(self, p): return coordinates for four (or three, if triangular) extremities of Panel object instance \'p\''''
-paneller.Solid.line_getcoords.__doc__='''line_getcoords(self, ind): return coordinate matrix (shape (3, 2)) for line with signed index ind. Coordinates are returned inverted if index ind
+paneller.Solid.panel_getcoords.__doc__='''panel_getcoords(p): return coordinates for four (or three, if triangular) extremities of Panel object instance \'p\''''
+paneller.Solid.line_getcoords.__doc__='''line_getcoords(ind): return coordinate matrix (shape (3, 2)) for line with signed index ind. Coordinates are returned inverted if index ind
 is presented as negative'''
-paneller.Solid.line_getvec.__doc__='''line_getvec(self, ind): return (oriented based on signalled index ind) the vector correspondent to the vortex line segment of signalled index ind'''
-paneller.Solid.line_midpoint.__doc__='''line_midpoint(self, ind): returns midpoint for line of signed index ind'''
-paneller.Solid.nvect_diradjust.__doc__='''nvect_diradjust(self, patchinds, vect): adjust all nvector variables in panels whose indexes are contained in index matrix \'patchinds\' to point in a direction 
+paneller.Solid.line_getvec.__doc__='''line_getvec(ind): return (oriented based on signalled index ind) the vector correspondent to the vortex line segment of signalled index ind'''
+paneller.Solid.line_midpoint.__doc__='''line_midpoint(ind): returns midpoint for line of signed index ind'''
+paneller.Solid.nvect_diradjust.__doc__='''nvect_diradjust(patchinds, vect): adjust all nvector variables in panels whose indexes are contained in index matrix \'patchinds\' to point in a direction 
 given by vector vect\'s positive orientation'''
-paneller.Solid.nvect_radadjust.__doc__='''nvect_radadjust(self, patchinds, center, inwards=False): adjust all nvector variables in panels whose indexes are contained in index matrix \'patchinds\' to point
+paneller.Solid.nvect_radadjust.__doc__='''nvect_radadjust(patchinds, center, inwards=False): adjust all nvector variables in panels whose indexes are contained in index matrix \'patchinds\' to point
 outwards (or inwards if inwards==True) from center in \'center\' argument'''
+paneller.Solid.lineadjust.__doc__='''lineadjust(patchinds=[]): adjusts all line directions (inverting signal in signalled line indexes on Panel instances) to fulfill clockwise orientation within each panel,
+based on the provided normal vectors. Applies to panels in patch panel index matrix \'patchinds\', or to all panels if it is empty'''
+paneller.Solid.iscontiguous.__doc__='''iscontiguous(patchinds=[], tolerance=5e-5): checks whether panels in patch panel index matrix \'patchinds\' (or all panels if it is empty) are contiguous (i. e. all
+lines end in the beginning of another, in the given panel, with a geometric tolerance between points defined by \'tolerance\' float argument)'''
+paneller.Solid.end_preprocess.__doc__='''end_preprocess(paninds=[], tolerance=5e-5): computes p.S and p.nvector for all panels indexed in list paninds. Checks are made to eliminate panels with less than
+three lines or surface below tolerance**2. Cfs, Cps, solution, vbar and delphi are instantiated in this function. Solid.lineadjust() is ran here as well'''
+paneller.Solid.gen_panline.__doc__='''gen_panline(): generate matrix such that solution_line=panline_matrix@solution (i. e. to compute vorticity in line segments based on panel vorticities)'''
+paneller.Solid.genaicm.__doc__='''genaicm(): generates matrixes aicm3_line (line-wise, three-dimensional influence velocities at collocation points: shape (3, npanels, nlines)),
+aicm3 (same for panels, shape (3, npanels, npanels), aicm3[i, :, :]=aicm3_lines[i, :, :]@panline_matrix) and aicm (aicm3 influence velocities dot-product multiplied by each panel\'s normal vector)'''
+paneller.Solid.gen_farfield.__doc__='''gen_farfield(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): generates farfield velocity at each collocation point based on freestream parameters (angles in radians)
+returned in array, shape (npanels, 3)'''
+paneller.Solid.gen_farfield_derivative.__doc__='''gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): computes derivative of farfield velocity by freestream parameter identified as string
+in kwarg \'par\', returned in array, shape (npanels, 3)'''
+paneller.Solid.genvbar.__doc__='''genvbar(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): calls gen_farfield() and sets Solid.vbar variable'''
+paneller.Solid.gennvv.__doc__='''gennvv(): generates Solid.nvv based on Solid.vbar and each Panel instance\'s normal vector p.nvector'''
+paneller.Solid.gen_selfinf_mat.__doc__='''gen_selfinf_mat(): generates variables Solid.selfinf_mat_x, y and z, used as described in Solid.__doc__ (see help(paneller.Solid) on python shell)
+to compute local vorticity surface gradient, used for surface velocity deduction as deduced by Ashok Srivastava in his papers'''
+paneller.Solid.gen_selfinf.__doc__='''gen_selfinf(): computes local vorticity gradient and adds its influence on local disturbance velocity as computed by Ashok Srivastava in his papers on Vortex Panel Method.
+Adds the computed contribution to Solid.delphi'''
+paneller.Solid.solve.__doc__='''solve(damper=0.0, target=np.array([])): computes solution and surface forces, with local panel transpiration (to enable viscid-inviscid coupling) inputted to \'target\'.
+if len(target)==0: target=np.zeros(npanels). A Thikhonov regularization is performed with damping coefficient \'damper\' if damper floating point kwarg is set as non-zero, thus solving even an ill-conditioned 
+AIC matrix'''
+paneller.Solid.calcpress.__doc__='''calcpress(Uinf=1.0): calculates Solid.Cps based on Solid.vbar and Solid.delphi'''
+paneller.Solid.calcforces.__doc__='''calcforces(): calculates local forces and moments on each panel, based on Solid.Cps and Solid.Cfs'''
+paneller.Solid.calc_derivative.__doc__='''calc_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): calculates derivatives in local pressure coefficients as array dCps, differentiated by
+freestream parameter in string variable \'par\'. Returns array of shape (npanels)'''
+paneller.Solid.plotgeometry.__doc__='''plotgeometry(xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0): plots solid\'s panelling as wireframe, with plot limits set by x, y, zlim arguments if non-empty.
+if velfield==True, plots vectors correspondent to each panel\'s local velocity vector multiplier by a factor (\'factor\' kwarg) for easier visualization of velocity field'''
+paneller.Solid.plotnormals.__doc__='''plotnormals(xlim=[], ylim=[], zlim=[], factor=1.0): plots panels as wireframe and their normal vectors p.nvector, scaled by factor kwarg so as to ease visualization.
+Sets plot limits if provided in non-empty kwargs'''
+paneller.Solid.eulersolve.__doc__='''eulersolve(target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True): computes complete euler solution through calls for 
+Solid.genvbar, gennvv, genaicm, solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True'''

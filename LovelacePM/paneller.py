@@ -413,7 +413,7 @@ class Solid:
         self.gen_selfinf_mat()
         self.gen_selfinf()
         self.solavailable=True
-        self.calcforces()
+        #self.calcforces()
     def calcpress(self, Uinf=1.0):
         for i in range(self.npanels):
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
