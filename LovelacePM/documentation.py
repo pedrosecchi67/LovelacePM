@@ -1,6 +1,7 @@
 import paneller
 import utils
 import control
+import wing
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
@@ -256,7 +257,7 @@ methods
 
 __init__
 '''
-control.control_axis.__init__.__doc__='''__init__(self, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0])): instantiate a control axis defined between points p0 and p1'''
+control.control_axis.__init__.__doc__='''__init__(p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0])): instantiate a control axis defined between points p0 and p1'''
 control.control.__doc__='''
 Class to be added to wing quadrants and controlled from aircraft instance
 
@@ -278,4 +279,67 @@ addpanels
 '''
 control.control.__init__.__doc__='''__init__(DOF=None, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0]), multiplier=1.0): instantiate control
 with controlling DOF in DOF kwarg, with axis defined between points p0 and p1, with multiplier in multiplier kwarg'''
-control.control.addpanels.__doc__='''addpanels(self, panlist): adds panels listed in index list panlist to control.paninds list of rotated panels\'s indexes'''
+control.control.addpanels.__doc__='''addpanels(panlist): adds panels listed in index list panlist to control.paninds list of rotated panels\'s indexes'''
+
+wing.__doc__='''
+Module containing classes for wing definition
+
+=======
+classes
+=======
+
+wing_section: section of a wing, with its airfoil points. Wing quadrants are defined between two of them
+wing_quadrant: space between two wing sections
+wing: a set of wing quadrants abuted to each other
+'''
+
+wing.wing_section.__doc__='''
+Class containing info from a wing section
+
+=========
+variables
+=========
+
+points: array of points in section (shape 2*xdisc+1, 3)
+CA_position: position of aerodynamic center (quarter-chord point) of the section at hand
+c: chord of section at hand
+closed: whether or not the section should be considered a closed wingtip
+inverted: whether or not the airfoil in question has been inverted (as done with horizontal stabilizers)
+correction: a sectional viscous correction for the section at hand (check reference on xfoil_visc module for more information)
+controls: list of control objects
+control_multipliers: list of multipliers for control objects
+control_ptinds: list of lists of indexes of points in wing_section.points array that are included in each control\'s influence
+alphas: lambda to set local angle of atack based on section\'s inviscid lift coefficient
+Cls: lambda to set local viscous lift coefficient variation based on section\'s inviscid lift coefficient
+Cds: lambda to set local viscous drag coefficient variation based on section\'s inviscid lift coefficient
+Cms: lambda to set local viscous moment coefficient variation based on section\'s inviscid lift coefficient
+
+=======
+methods
+=======
+
+__init__
+hascorrection
+getcorrection
+addcontrols
+hascontrol
+hasdeflection
+getinthick
+applycontrols
+'''
+wing.wing_section.__init__.__doc__='''__init__(afldir='', c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
+        header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False, \
+            correction=None, Re=2e6):
+            initializes wing section with airfoil \'afl\' collected from directory afldir (if len(afldir)==0: afldir=os.getcwd()) through utils.read_afl,
+            with arguments header_lines, disc=xdisc, remove_TE_gap, inverse and strategy=xstrategy. closed kwarg sets wing section to closed wingtip if True.
+            if correction!=None, a correction from module xfoil_visc is provided, and Reynolds Re should be considered to generate a viscous polar for the given section'''
+wing.wing_section.hascorrection.__doc__='''hascorrection(): returns whether or not xfoil viscous correction is available (i. e. self.correction!=None)'''
+wing.wing_section.getcorrection.__doc__='''getcorrection(Re=2e6): sets lambas self.alphas, self.Cls, self.Cds, self.Cms for wing_section instance'''
+wing.wing_section.addcontrols.__doc__='''addcontrols(controls=[], control_multipliers=[], control_axpercs=[]): add controls with percentages in chordwise direction and multipliers
+listed in kwarg lists, and their control objects in controls kwarg list'''
+wing.wing_section.hascontrol.__doc__='''hascontrol(): return hasattr(\'controls\'), i. e. boolean on whether the section is subject to any control object'''
+wing.wing_section.getinthick.__doc__='''getinthick(eta=0.5, x=0.0): get point in section in x position in x-axis and at an eta percentage of the airfoil\'s thickness (positive on
+positive orientation of z axis)'''
+wing.wing_section.applycontrols.__doc__='''applycontrols(ths, control_inds): applies control deflections in deflection list th (a single float value can also be provided
+for deflecting all controls by the same value) by deflecting the panels listed for each control object by moving the points indexed in section by indexes present in sublists
+of list of lists control_inds'''
