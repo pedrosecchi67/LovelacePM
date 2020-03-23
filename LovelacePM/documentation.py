@@ -2,6 +2,7 @@ import paneller
 import utils
 import control
 import wing
+import body
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
@@ -458,3 +459,60 @@ wing.wing.genwakepanels.__doc__='''genwakepanels(offset=1000.0, a=0.0, b=0.0): g
 wing.wing.hascorrection.__doc__='''hascorrection(): checks whether all wing quadrants in the wing have been provided with viscous corrections. It is a condition for the application of those corrections
 in coefficient calculations'''
 wing.wing.calc_corrected_forces.__doc__='''calc_corrected_forces(): returns dCX, dCY, dCZ, dCl, dCm, dCn considering viscous corrections'''
+
+body.__doc__='''
+Module containing definitions necessary for non-lifting body definitions
+
+=========
+functions
+=========
+
+Re2e6
+Blausius_Cf_l
+Prandtl_1_7th
+circdefsect
+squaredefsect
+smooth_angle_defsect_function
+standard_body
+prevline_organize
+
+NOTE: a defsect designates a function returning a body section according to arguments (y_expand, z_expand, R, center).
+
+=======
+classes
+=======
+
+body_section
+body_panel
+body
+'''
+body.Re2e6.__doc__='''Re2e6(Re): simplest possible turbulence criterion (returns Re>2e6)'''
+body.Blausius_Cf_l.__doc__='''Blausius_Cf_l(Re): returns friction coefficient according to Blausius\'s laminar boundary layer formulation'''
+body.Prandtl_1_7th.__doc__='''Prandtl_1_7th(Re): returns friction coefficient for laminar boundary layers according to Prandtl\'s 1-7th power rule'''
+body.prevline_organize.__doc__='''prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False): organizes previous lines for list to be provided to prevlines dictionary in Solid.addpatch 
+method in body patch composing. Takes arguments:
+* queue: a list of abuted lifting surfaces, with crescent x position of aerodynamic center of abuted section
+* nlines: list with number of lines in each of the intervals between abuted lifting surfaces (e. g. [20, 10, 30] could be provided for queue=[leftwing, horizontal_empenage]). Has an orientation
+opposite to \'queue\', in the x axis
+* prevlateral: previous patch edge, in vortex line unsigned indexes, to fetch lines from when composing edge for new patch. If empty, new lines are created for that purpose and no previous patch is considered
+in the body
+* intra: to fetch lines from abuted surfaces\' lower surface (boolean)
+* right: to fetch lines from queue[i].intraright_lines and queue[i].extraright_lines, if true, for each element of the provided lifting surface queue'''
+body.circdefsect.__doc__='''circdefsect(y_expand=1.0, z_expand=1.0, R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): returns circular section with given geometrical parameters (and
+cubic polar rule, if cubic==True) for body composition'''
+body.squaredefsect.__doc__='''circdefsect(y_expand=1.0, z_expand=1.0, R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): returns square section with given geometrical parameters (and
+cubic polar rule, if cubic==True) for body composition'''
+body.smooth_angle_defsect_function.__doc__='''smooth_angle_defsect_function(r_1x=0.5, r_2x=0.5, r_1y=0.5, r_2y=0.5, ldisc=30, thdisc=20): returns a defsect (a lambda function returning 
+a body section according to arguments (y_expand, z_expand, R, center)) with ellipsoidally concordant corners of semi-axis lengths r_1x, r_1y 
+(lower corners\' semi-axis lengths/R, R being the section\'s largest dimension) and r_2x, r_2y (same for upper corners).
+Check LovelacePM.monoplane code for an example of its use'''
+body.standard_body.__doc__='''standard_body(sld, defsect=circdefsect, nose_loc=np.array([0.0, 0.0, 0.0]), nose_length=0.1, nose_thdisc=10, body_length=1.0, \
+    body_width=0.1, tailcone_length=0.2, body_thdisc=60, tolerance=0.00005, nose_lift=0.0, tail_lift=0.0, z_expand=1.0, \
+y_expand=1.0):
+returns a body bound to solid sld of:
+* straight body of length body_length, defined with ;
+* input radial discretization body_thdisc for the body;
+* ellipsoidal nose of length nose_length, with tip raised by nose_lift in z axis;
+* tailcone of length tailcone_length, with tip raised by tail_lift in z axis;
+* shape defined by defsect (a lambda function returning a body section according to arguments (y_expand, z_expand, R, center)) and scaling factor kwargs z_expand and y_expand;
+* geometrical tolerance in body_panel class creation is set by kwarg tolerance.'''
