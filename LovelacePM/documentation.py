@@ -1,4 +1,5 @@
 import paneller
+import utils
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
@@ -166,3 +167,41 @@ paneller.Solid.plotnormals.__doc__='''plotnormals(xlim=[], ylim=[], zlim=[], fac
 Sets plot limits if provided in non-empty kwargs'''
 paneller.Solid.eulersolve.__doc__='''eulersolve(target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True): computes complete euler solution through calls for 
 Solid.genvbar, gennvv, genaicm, solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True'''
+
+utils.__doc__='''
+Module containing geometry processing, list trimming and other utilities for other modules
+
+=========
+functions
+=========
+
+read_afl
+wing_afl_positprocess
+trimlist
+trim_polars
+linear_pts
+elliptic_pts
+gen_circdefsect_coords
+gen_squaredefsect_coords
+smooth_angle_defsect_coords
+'''
+
+
+utils.read_afl.__doc__='''read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, remove_TE_gap=False, extra_intra=False, 
+incidence=0.0, inverse=False, closed=False): reads airfoil in afl (adding extension .dat if ext_append==True), eliminating header_lines lines from Selig format file. Repanels airfoil with 
+x discretization disc, using x points as strategy(np.linspace(0.0, 1.0, disc+1)), strategy being a lambda. remove_TE_gap sets the first and last points to their mean point, eliminating trailing edge
+gap. \'True\' is indicated for inviscid calculations. if extra_intra==True, points referrent to upper and lower airfoil surface are also returned, in tuple. if inverse==True, the airfoil\'s y axis is inverted.
+Returns aflpts, array of shape (2*xdisc+1, 2)'''
+utils.wing_afl_positprocess.__doc__='''wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0): returns three-dimensionalized version of airfoil in points in array afl as returned by
+utils.read_afl. Twisted around x axis by gamma (radians), with chord c and positions in three dimensional axes by correspondent kwargs'''
+utils.trimlist.__doc__='''trimlist(n, l): trims list l to length n by reproducing its first element, if it is not empty and len(l)<n'''
+utils.trim_polars.__doc__='''trim_polars(th): trims angle th to [-pi; pi] and returns its congruous angle in the given interval'''
+utils.trim_polars_array.__doc__='''trim_polars_array(thspacing): trims array of angles thspacing to their congruous values in [-pi; pi] and returns trimmed array'''
+utils.linear_pts.__doc__='''linear_pts(p1, p2, n, endpoint=False): generates linear interpolation in 2D space between points p1 and p2, with n points. endpoint kwarg works as in np.linspace function.
+Returns list of point arrays'''
+utils.elliptic_pts.__doc__='''elliptic_pts(p1, p2, center, r_x, r_y, th1, th2, n, endpoint=False): generates interpolation on ellipse of semi-radiuses in x and y axis r_x and r_y, between azimutal angles th1
+and th2, with center in \'center\'. n points are taken in interval, and endpoint kwarg works as in np.linspace function. Returns list of point arrays'''
+utils.gen_circdefsect_coords.__doc__='''gen_circdefsect_coords(disc): returns points for body.circdefsect default body section, with goven input panel discretization'''
+utils.gen_squaredefsect_coords.__doc__='''gen_squaredefsect_coords(disc): returns points for body.squaredefsect default body section, with goven input panel discretization'''
+utils.smooth_angle_defsect_coords.__doc__='''smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20): returns coordinates for body.smooth_angle_defsect function, with given semi-ellipsoid
+concordance radii r_1x (lower, x-axis), r_2x (upper, x-axis), r_1y and r_2y'''
