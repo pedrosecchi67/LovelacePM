@@ -516,3 +516,52 @@ returns a body bound to solid sld of:
 * tailcone of length tailcone_length, with tip raised by tail_lift in z axis;
 * shape defined by defsect (a lambda function returning a body section according to arguments (y_expand, z_expand, R, center)) and scaling factor kwargs z_expand and y_expand;
 * geometrical tolerance in body_panel class creation is set by kwarg tolerance.'''
+
+body.body_panel.__doc__='''
+Class with information about a panel that delimits an inputted body (for geometric, and not aerodynamic purposes).
+
+=========
+variables
+=========
+
+points: array (shape (3, 4)) with four points that compose the panel
+center: center of the panel
+Mtosys: basis conversion matrix for a panel-oriented system (z-axis normal to plane, pointing out of the solid)
+Mtouni: its inverse
+locpoints: points converted to local coordinate system (Mtosys@(points-center))
+
+=======
+methods
+=======
+
+__init__
+'''
+body.body_panel.__init__.__doc__='''__init__(p1, p2, p3, p4, tolerance=0.00005): constructor for a body panel,
+recieving its four points and a geometric tolerance (tolerated areas should have at least tolerance**2)'''
+
+body.body_section.__doc__='''
+Class computing information about a section of a body in the yz plane. Should be lined, in body class instances, in the direction of the x axis.
+
+=========
+variables
+=========
+
+R: biggest dimension
+coords: coordinates of points (array of shape (npoints, 3))
+thetas: array with polar coordinates of points (positive as counterclockwise around x axis, on yz plane. 0 on z axis, ranging from -pi to pi)
+Rs: correspondent radii, used along with array thetas
+center: the sections center, around which polar coordinates will be calculated
+polar_rule: lambda returning R with th=theta (polar coordinate as described before) argument. Defined as spline or linear interpolation, according to argument in constructor
+
+=======
+methods
+=======
+__init__
+__call__
+'''
+body.body_section.__init__.__doc__='''__init__(center=np.array([0.0, 0.0, 0.0]), coords=np.vstack((np.sin(np.linspace(0.0, 2*pi, 360)), \
+        np.cos(np.linspace(0.0, 2*pi, 360)))).T, R=1.0, y_expand=1.0, z_expand=1.0, cubic=True): constructor of a section with coordinates based on threedimensionalization
+        of yz-plane coordinates coords, with maximum dimension R, around center. Scaled in y and z axis by multipliers y_expand and z_expand. If cubic is True, the object\'s
+        polar_rule lambda function will be defined as a cubic spline. Otherwise, as a linear interpolation'''
+body.body_section.__call__.__doc__='''__call__(th): returns point around center, with polar coordinates in [-pi; pi], clockwise around x axis with zero on z axis, and radius as defined by
+body_section.polar_rule'''
