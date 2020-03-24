@@ -166,7 +166,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.sld.end_preprocess()
         for wng in self.wings:
             wng.genwakepanels(offset=offset, a=self.a, b=self.b)
-    def calcforces(self, echo=True, custCp=np.array([])):
+    def calcforces(self, echo=True):
         self.CX=sum([self.sld.forces[i][0] for i in range(self.sld.npanels)])/self.Sref
         self.CY=sum([self.sld.forces[i][1] for i in range(self.sld.npanels)])/self.Sref
         self.CZ=sum([self.sld.forces[i][2] for i in range(self.sld.npanels)])/self.Sref
@@ -248,7 +248,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             print('%5s | %10f %10f %10f %10f %10f %10f %10f %10f' % (p, self.stabderivative_dict[p]['dCX'], self.stabderivative_dict[p]['dCY'], \
                 self.stabderivative_dict[p]['dCZ'], self.stabderivative_dict[p]['dCL'], self.stabderivative_dict[p]['dCD'], self.stabderivative_dict[p]['dCl'], \
                     self.stabderivative_dict[p]['dCm'], self.stabderivative_dict[p]['dCn']))
-    def edit_parameters(self, pardict):
+    def edit_parameters(self, pardict, echo=True):
         for par in pardict:
             val=pardict[par]
             if par=='a':
@@ -269,7 +269,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.stabavailable=False
         self.forcesavailable=False
         self.haseqflatplate=False
-        self.parameter_report()
+        if echo:
+            self.parameter_report()
     def bodies_eqflatplate_apply(self, rho=1.225, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         self.haseqflatplate=True
         for bdy in self.bodies:
