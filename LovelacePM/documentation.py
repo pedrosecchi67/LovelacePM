@@ -565,3 +565,63 @@ body.body_section.__init__.__doc__='''__init__(center=np.array([0.0, 0.0, 0.0]),
         polar_rule lambda function will be defined as a cubic spline. Otherwise, as a linear interpolation'''
 body.body_section.__call__.__doc__='''__call__(th): returns point around center, with polar coordinates in [-pi; pi], clockwise around x axis with zero on z axis, and radius as defined by
 body_section.polar_rule'''
+
+body.body.__doc__='''
+Class to agregate information about a non-lifting body. Patches are composed, for it, with 4 patches angularly distributed around the body and abutted lifting surfaces between them.
+
+=========
+variables
+=========
+
+sld: Solid instance to which the body is bound
+tolerance: geometric tolerance for patchcompose functions
+sect_xpos: vector including x position of all section centers
+sections: list of sections that compose the non-lifting body
+center: \'lambda x:\' function returning the position in 3D space of the center of a transversal fuselage cut at position x in x axis
+y_expand_rule, z_expand_rule: linearly interpolations defining y_expand and z_expand section arguments as a function of x
+last_x: interpolation object identifying the x position of the last section (previous in positive x-axis listing)
+next_x: interpolation object identifying the x position of the next section (next in positive x-axis listing)
+body_panels: list with all body panel instances
+paninds: patch panel index matrix for the 4 patches in a non-lifting body
+
+=======
+methods
+=======
+
+__init__
+set_aircraft
+find_body_intersect
+plot_input
+surfinterp
+side_separate
+line_surfinterp
+theta_queueident
+patchcompose
+apply_eqflatplate
+bodypanel_plotnormals
+'''
+body.body.__init__.__doc__='''__init__(sld, sections=[], tolerance=0.00005): creates body object with sections in kwarg list, with given geometric tolerance for patch definition and bound to Solid object sld'''
+body.body.set_aircraft.__doc__='''set_aircraft(acft): binds the given non-lifting body to aircraft class instance acft'''
+body.body.find_body_intersect.__doc__='''find_body_intersect(p, u, tolerance=0.00005): find a contact point with a line defined by point p and vector u. Geometric tolerance is set for maximum distance between 
+a panel and a point to define the latter\'s belonging to it'''
+body.body.plot_input.__doc__='''plot_input(fig=None, ax=None, show=False, xlim=[], ylim=[], zlim=[], colour='gray'): plot inputted body geometry as a wireframe. Use given figure and axes if not None, or create
+new ones otheriwse. If show is True, plt.show() will be automatically ran. Otherwise, it must be externally executed'''
+body.body.surfinterp.__doc__='''surfinterp(th, x): returns point array, in 3D space, of a point in the non-lifting body\'s surface in x position in the x axis and th polar coordinate (in [-pi; pi], 0 at
+z axis, positive orientation as clockwise around x axis)'''
+body.body.side_separate.__doc__='''side_separate(leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, xdisc=100): returns x-axis spacing (given by
+np.interp(xstrategy(np.linspace(0.0, 1.0, xdisc+1)), np.array([0.0, 1.0]), np.array([x1, x2]))) and the number of lines occupying each x-axis interval between queued lifting surfaces.
+returns lnlines, lxdisc, rnlines, rxdisc, unlines, uxdisc, dnlines, dxdisc. inlines designates the number of lines in intervals not occupied by lifting surfaces of queue i 
+(d for low, u for upper, r for right, l for left queue). ixdisc indicates an array giving the x-spacing control points for queue i'''
+body.body.theta_queueident.__doc__='''theta_queueident(queue, xspacing, intra=False, right=False, queueident=\'l\'): sets polar coordinates (in [-pi; pi], 0 at
+z axis, positive orientation as clockwise around x axis) for points defined by xspacing array, along a queue, following upper surface points (if intra==False, 
+lower if otherwise) of surfaces in queue list. Points in the rightmost sections of the wings contained in queue are fetched if right is True, or from the leftmost section if otherwise.
+queueident identifies the requested queue (d for low, u for upper, r for right, l for left queue)'''
+body.body.patchcompose.__doc__='''patchcompose(leftqueue=[], rightqueue=[], upqueue=[], leftqueue=[], xstrategy=lambda x: x, xdisc=100, thstrategy=lambda x: x, thdisc_upleft=20, thdisc_upright=20, \
+    thdisc_downleft=20, thdisc_downright=20, tolerance=5e-5): compose four panel patches (upleft: between upper and left queues; downright: between lower and rightmost queues; etc.) to model the body at hand.
+    thdisc_[patch] arguments set discretization levels for each of the four patches. xdisc sets discretization in the x axis, as np.interp(xstrategy(np.linspace(0.0, 1.0, xdisc+1)), np.array([0.0, 1.0]), 
+    np.array([x1, x2]))). Angular discretization in patches is defined likewise. tolerance is provided as an argument for Solid.addpatch() routine (check its referrence for further detail)'''
+body.body.apply_eqflatplate.__doc__='''apply_eqflatplate(rho=1.225, Uinf=1.0, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies, 
+according to given turbulence criteria (function of local Reynolds returning boolean, True if turbulent) and rules for turbulent and laminar friction coefficients (function of local Reynolds,
+returning floats), values for sld.Cfs[p] in the Solid instance the body at hand is bound to. Leads to approximation of viscous effects on the non-lifting body. Custom rules may be applied by means of kwargs'''
+body.body.bodypanel_plotnormals.__doc__='''bodypanel_plotnormals(xlim=[], ylim=[], zlim=[], factor=1.0): function to plot normal vectors (given by third row of body_panel.Mtosys coordinate system matrix)
+of each of the body panels defining the body at hand. Used for debugging input geometries. Works as Solid.plotnormals, the referrence of which should be checked for further detail'''
