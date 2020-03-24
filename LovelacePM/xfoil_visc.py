@@ -25,7 +25,7 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
     #flap variable: [x_hinge, y_hinge, deflection(angles)]. aseq: same input as required for xfoil command
     ordir=os.getcwd()
     if len(afldir)==0:
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        os.chdir(ordir)
     else:
         os.chdir(afldir)
     if os.path.exists('temppolar.plr'):
@@ -94,24 +94,28 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
     return alphas, Cls, Cds, Cms
 
 class polar_correction:
-    def __init__(self, name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
+    def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
         self.Re_low=Re_low
         self.Re_high=Re_high
-        self.alphas_Re_low, self.Cls_Re_low, self.Cds_Re_low, self.Cms_Re_low=polar_data(name=name, ext_append=ext_append, \
+        self.alphas_Re_low, self.Cls_Re_low, self.Cds_Re_low, self.Cms_Re_low=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
             aseq=aseq, Re=Re_low, M=Mach, visc=True, iter=iter)
-        self.alphas_Re_high, self.Cls_Re_high, self.Cds_Re_high, self.Cms_Re_high=polar_data(name=name, ext_append=ext_append, \
+        self.alphas_Re_high, self.Cls_Re_high, self.Cds_Re_high, self.Cms_Re_high=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
             aseq=aseq, Re=Re_high, M=Mach, visc=True, iter=iter)
-        self.alphas_inviscid, self.Cls_inviscid, self.Cds_inviscid, self.Cms_inviscid=polar_data(name=name, ext_append=ext_append, \
+        self.alphas_inviscid, self.Cls_inviscid, self.Cds_inviscid, self.Cms_inviscid=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
             aseq=aseq, M=Mach, visc=False, iter=iter)
         if len(name)!=0:
             self.create_functions(cubic=cubic)
-    def dump(self, poldir='polars', polname='n4412', ext_append=True, echo=True): #dump to file
+    def dump(self, poldir='', polname='n4412', ext_append=True, echo=True): #dump to file
         ordir=os.getcwd()
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        fname=poldir+'/'+polname
+        if len(poldir)==0:
+            os.chdir(ordir)
+        else:
+            os.chdir(poldir)
+        #fname=poldir+'/'+polname
+        fname=polname
         if ext_append:
             fname+='.plr'
-        file=open(fname, 'w')
+        file=open(fname, 'r')
         file.write(str(len(self.alphas_inviscid))+'\n')
         if echo:
             print('Dumping '+polname+' polar')
@@ -179,11 +183,15 @@ class polar_correction:
             Cms=lambda Cl: -(self.Cms_Re_low_fun(-Cl)*(1.0-eta)+eta*self.Cms_Re_high_fun(-Cl))
         return alphas, Cls, Cds, Cms
 
-def read_polar(poldir='polars', polname='n4412', ext_append=True, echo=True, cubic=True): #read polars from dumped file
+def read_polar(poldir='', polname='n4412', ext_append=True, echo=True, cubic=True): #read polars from dumped file
     ordir=os.getcwd()
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    if len(poldir)==0:
+        os.chdir(ordir)
+    else:
+        os.chdir(poldir)
     newpolar=polar_correction(name='')
-    fname=poldir+'/'+polname
+    #fname=poldir+'/'+polname
+    fname=polname
     if ext_append:
         fname+='.plr'
     if not os.path.exists(fname):

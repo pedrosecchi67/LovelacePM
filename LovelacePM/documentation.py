@@ -3,6 +3,9 @@ import utils
 import control
 import wing
 import body
+import aircraft
+import xfoil_visc
+import aerodynamic_output
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
@@ -693,7 +696,7 @@ aircraft.aircraft.addwake.__doc__='''addwake(offset=1000.0): generates wakes for
 set freestream parameters. Must be ran after parameter definition and patch composing, though before Euler solution and post-processing'''
 aircraft.aircraft.calcforces.__doc__='''calcforces(echo=True): calculates forces acting on the aircraft based on the Solid instance aircraft.sld\'s last ran Euler solution. If echo is True, method
 aircraft.forces_report() is ran in place. Viscous corrections are also computed in place (see variables dCX, dCY,... in the class\'s documentation)'''
-aircraft.aircraft.freestream_derivatives.__doc__='''freestream_derivative(par=\'a\'): calculates derivative of unitary streamwise (u) vector and its perpendicular vector v, parallel to lift, in respect to
+aircraft.aircraft.freestream_derivative.__doc__='''freestream_derivative(par=\'a\'): calculates derivative of unitary streamwise (u) vector and its perpendicular vector v, parallel to lift, in respect to
 freestream parameters \'alpha/a\' and \'beta/b\'. Returns (du, dv), both arrays of shape (3). Called within aircraft.calcstab() method for adjoint calculation of stability derivatives'''
 aircraft.aircraft.calcstab.__doc__='''calcstab(echo=True): calculates all stability derivatives for stabderivative_dict (check reference for aircraft class\'s variables) through adjoint method. If echo is 
 provided as True, method aircraft.stabreport() is called in place. Otherwise, calculations are ran silently'''
@@ -738,3 +741,89 @@ in arg sld. Viscous and inviscid calculations for coefficients will be contraste
 aerodynamic_output.plot_Cms.__doc__='''plot_Cms(sld, alpha=0.0, wings=[], axis=1): plots sectional moment coefficients accross wings in kwarg list, based on given angle of attack and the axis along which 
 the lifting surfaces stretch (1 if y axis, wings, 2 if z axis, vertical fins. alpha should be interpreted as sideslip angle if axis==2). Bound Solid instance from which to gather Cp info should be provided
 in arg sld. Viscous and inviscid calculations for coefficients will be contrasted'''
+
+xfoil_visc.__doc__='''
+Module containing automation of Xfoil (by Mark Drella, MIT License) for viscous correction calculations, according to strip theory.
+WARNING: depends on Xfoil being registered to PATH environment variable in the machine at hand
+
+=======
+classes
+=======
+
+polar_correction
+
+=========
+functions
+=========
+
+polar_data
+read_polar
+
+=======
+classes
+=======
+
+polar_correction
+'''
+xfoil_visc.polar_data.__doc__='''polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None): returns alphas, Cls, Cds, Cms arrays
+for Xfoil-calculated polar. Airfoil is searched for (with .dat extension if ext_apped==True) in afldir directory, or current directory if it is of length 0. Elements of aseq list should be,
+respectively, first angle of attack, last angle of attack and desired step in AOAs for polar composition. visc==True sets Reynolds number to kwarg Re. M sets Mach number. iter kwarg sets maximum number of
+iterations for quasi-simultaneous viscid inviscid coupling. flap, if present, defines a length=3 list with, respectively, the x-axis chord percentage for the flap\'s axis, the thickness percentage for the
+given axis and its deflection in degrees.
+
+WARNING: aseq and iter kwargs may have to be changed to obtain better polars. Non-converged AOAs are not returned: check alphas array in returned values to detect converged angles of attack'''
+xfoil_visc.read_polar.__doc__='''read_polar(poldir='', polname='n4412', ext_append=True, echo=True, cubic=True): reads polar from directory poldir (or current directory if none is provided)
+with name polname. If ext_append is True, extension.plr is expected. Return is an instance of class polar_correction. If cubic is True, polar interpolation functions will be created as cubic splines.
+Otherwise, linear interpolations shall be used. If kwarg echo is True, polar data shall be output as it is read'''
+xfoil_visc.polar_correction.__doc__='''
+Class containing information on a given viscous polar obtained from Xfoil.
+
+WARNING: not all polars obtained from Xfoil can be readily used, for unconvergence of its quasi-simultaneous viscous-inviscid coupling method may compromise some of the returned AOAs, which are
+made unavailable for use by this class. It is advisable that viscous polars are created separately from other aircraft analysis scripts, saved using polar_correction.dump() method and loaded for
+aircraft analysis using function xfoil_visc.read_polar()
+
+WARNING: polars are linearly interpolated between available calculated Reynolds numbers so as to fit other Reynolds intervals. Re_high and Re_low variables must be set so as to achieve maximum precision
+with this interpolation
+
+.plr file structure:
+[first line with number of inviscid polar lines]
+Inviscid polar with alpha, Cl, Cd and Cm information, respectively, in four columns for all calculated AOAs
+[arbitrary low Reynolds number value for polar, separated by simple spacing from number of collected AOAs for the chosen low Reynolds number]
+Low Reynolds viscous polar with alpha, Cl, Cd and Cm information, respectively, in four columns for all calculated AOAs
+[arbitrary high Reynolds number value for polar, separated by simple spacing from number of collected AOAs for the chosen high Reynolds number]
+High Reynolds viscous polar with alpha, Cl, Cd and Cm information, respectively, in four columns for all calculated AOAs
+EOF
+
+=========
+variables
+=========
+Re_low: lower Reynolds number provided for polar interpolation between Reynolds numbers
+Re_high: higher Reynolds number provided for polar interpolation between Reynolds numbers
+alphas_Re_low, Cls_Re_low, Cds_Re_low, Cms_Re_low: polar results for low Reynolds
+alphas_Re_high, Cls_Re_high, Cds_Re_high, Cms_Re_high: polar results for high Reynolds
+alphas_inviscid, Cls_inviscid, Cds_inviscid, Cms_inviscid: polar results for inviscid calculations
+alphas_Re_low_fun, Cls_Re_low_fun, Cds_Re_low_fun, Cms_Re_low_fun: polar interpolations based on inviscid Cl input for low Reynolds
+alphas_Re_high_fun, Cls_Re_high_fun, Cds_Re_high_fun, Cms_Re_high_fun: polar interpolations based on inviscid Cl input for high Reynolds
+
+=======
+methods
+=======
+
+__init__
+dump
+create_functions
+__call__
+'''
+xfoil_visc.polar_correction.__init__.__doc__='''__init__(name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
+create polar correction for named airfoil, appending extension .dat for its file name if ext_append is True, between AOAs aseq[0] and aseq[1] with AOA step aseq[2]. Linear interpolation
+for Reynolds number extrapolation (check reference for xfoil_visc.polar_correction class for more info) is done between Reynolds numbers Re_low and Re_high. Mach number is set to kwarg
+Mach. Maximum iteration for viscous-inviscid coupling is set to kwarg iter. If cubic is True, polars will extrapolate data for AOAs using a cubic spline. A linear interpolation will be used
+otherwise. flap, if present, defines a length=3 list with, respectively, the x-axis chord percentage for the flap\'s axis, the thickness percentage for the
+given axis and its deflection in degrees.'''
+xfoil_visc.polar_correction.dump.__doc__='''dump(poldir='', polname='n4412', ext_append=True, echo=True): prints polar in .plr format (appending extension if ext_append is True) to file polname in directory
+poldir (or pwd if len(poldir)==0). Data is printed to stdio as dumped into file if echo is True'''
+xfoil_visc.polar_correction.create_functions.__doc__='''create_functions(cubic=True): creates cubic (or linear if cubic==False) interpolations for variables:
+alphas_Re_low_fun, Cls_Re_low_fun, Cds_Re_low_fun, Cms_Re_low_fun: polar interpolations based on inviscid Cl input for low Reynolds
+alphas_Re_high_fun, Cls_Re_high_fun, Cds_Re_high_fun, Cms_Re_high_fun: polar interpolations based on inviscid Cl input for high Reynolds'''
+xfoil_visc.polar_correction.__call__.__doc__='''__call__(Re=2e6, inverse=False): returns lambdas linearly interpolating low and high Reynolds polars for given kwarg Reynolds number Re, in tuple
+(alphas, Cls, Cds, Cms). inverse kwarg should be set to True if an inverted airfoil (e. g. for horizontal tails) is to be used'''
