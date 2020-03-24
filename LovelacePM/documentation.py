@@ -711,3 +711,30 @@ aircraft.aircraft.plot_input.__doc__='''plot_input(xlim=[], ylim=[], zlim=[]): p
 is provided'''
 aircraft.aircraft.plotgeometry.__doc__='''plotgeometry(xlim=[], ylim=[], zlim=[], factor=1.0, velfield=True): plots the aircraft\'s panelling as a wireframe. If velfield is set to True, local velocities are
 also drawn as vectors (multiplied by scaling factor kwarg for easier visualization)'''
+
+aerodynamic_output.__doc__='''
+Module containing functions for plotting aerodynamic results
+
+=========
+functions
+=========
+
+plot_Cps
+plot_Cls
+plot_gammas
+plot_Cds
+plot_Cms
+'''
+aerodynamic_output.plot_Cps.__doc__='''plot_Cps(sld, elems=[], xlim=[], ylim=[], zlim=[-2.5, 2.5]): plots Cps in panels belonging to elements (wings and bodies) in elems list according to Cps available in
+bound Solid instance sld, using a 3D scattergram. 3D plotting limits are set using kwarg lists. Default z-axis (Cp) limits for plotting are set by default to interval [-2.5; 2.5]'''
+aerodynamic_output.plot_Cls.__doc__='''plot_Cls(sld, alpha=0.0, wings=[], axis=1): plots sectional lift coefficients accross wings in kwarg list, based on given angle of attack and the axis along which 
+the lifting surfaces stretch (1 if y axis, wings, 2 if z axis, vertical fins. alpha should be interpreted as sideslip angle if axis==2). Bound Solid instance from which to gather Cp info should be provided
+in arg sld. Viscous and inviscid calculations for coefficients will be contrasted'''
+aerodynamic_output.plot_gammas.__doc__='''plot_gammas(sld, alpha=0.0, Uinf=1.0, wings=[], axis=1): plots circulation along wing sections using info as provided for function aerodynamic_output.plot_Cls(),
+with a given freestream veloctity. Check help(plot_Cls) for further information on argument structure'''
+aerodynamic_output.plot_Cds.__doc__='''plot_Cds(sld, alpha=0.0, wings=[], axis=1): plots sectional drag coefficients accross wings in kwarg list, based on given angle of attack and the axis along which 
+the lifting surfaces stretch (1 if y axis, wings, 2 if z axis, vertical fins. alpha should be interpreted as sideslip angle if axis==2). Bound Solid instance from which to gather Cp info should be provided
+in arg sld. Viscous and inviscid calculations for coefficients will be contrasted'''
+aerodynamic_output.plot_Cms.__doc__='''plot_Cms(sld, alpha=0.0, wings=[], axis=1): plots sectional moment coefficients accross wings in kwarg list, based on given angle of attack and the axis along which 
+the lifting surfaces stretch (1 if y axis, wings, 2 if z axis, vertical fins. alpha should be interpreted as sideslip angle if axis==2). Bound Solid instance from which to gather Cp info should be provided
+in arg sld. Viscous and inviscid calculations for coefficients will be contrasted'''
