@@ -35,7 +35,7 @@ def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=
     if inverse:
         aflpts[:, 1]=-aflpts[:, 1]
     if incidence!=0.0:
-        R=np.array([[cos(incidence), -sin(incidence)], [sin(incidence), cos(incidence)]])
+        R=np.array([[cos(incidence), sin(incidence)], [-sin(incidence), cos(incidence)]])
         if inverse:
             R=R.T
         aflpts=(R@(aflpts.T)).T/cos(incidence)
