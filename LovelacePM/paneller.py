@@ -336,7 +336,7 @@ class Solid:
     def gen_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
         for i in range(self.npanels):
-            newvec[i, :]=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([-p, q, -r], dtype='double'), self.panels[i].colpoint)
+            newvec[i, :]=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([p, -q, r], dtype='double'), self.panels[i].colpoint)
         return newvec
     def gen_farfield_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
@@ -348,13 +348,13 @@ class Solid:
                 newvec[i, :]=Uinf*np.array([-cos(a)*sin(b), -cos(a)*cos(b), 0.0], dtype='double')
         elif par=='p':
             for i in range(self.npanels):
-                newvec[i, :]=np.cross(np.array([-1.0, 0.0, 0.0], dtype='double'), self.panels[i].colpoint)
+                newvec[i, :]=np.cross(np.array([1.0, 0.0, 0.0], dtype='double'), self.panels[i].colpoint)
         elif par=='q':
             for i in range(self.npanels):
-                newvec[i, :]=np.cross(np.array([0.0, 1.0, 0.0], dtype='double'), self.panels[i].colpoint)
+                newvec[i, :]=np.cross(np.array([0.0, -1.0, 0.0], dtype='double'), self.panels[i].colpoint)
         elif par=='r':
             for i in range(self.npanels):
-                newvec[i, :]=np.cross(np.array([0.0, 0.0, -1.0], dtype='double'), self.panels[i].colpoint)
+                newvec[i, :]=np.cross(np.array([0.0, 0.0, 1.0], dtype='double'), self.panels[i].colpoint)
         elif par=='Uinf':
             for i in range(self.npanels):
                 newvec[i, :]=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')

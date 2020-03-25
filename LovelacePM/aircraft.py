@@ -45,7 +45,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             print('WARNING: stability derivatives not available for balancing. Performing in place')
             self.calcstab(echo=echo)
         loc_SM=-self.stabderivative_dict['a']['dCm']/self.stabderivative_dict['a']['dCL']
-        self.transp_byvec((SM-loc_SM)*np.array([1.0, 0.0, 0.0])*self.cref)
+        self.transp_byvec(-(SM-loc_SM)*np.array([1.0, 0.0, 0.0])*self.cref)
         new_SM=-self.stabderivative_dict['a']['dCm']/self.stabderivative_dict['a']['dCL']
         if echo:
             print('==========Balancing========')

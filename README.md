@@ -1,7 +1,7 @@
 # LovelacePM
 ## Open source, Python-interpretable 3D vortex panel method code for optimized full aircraft configuration analysis
 
-This README refers to capabilities and usage conditions referrent to version 0.0.2. Version 0.0.2 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
+This README refers to capabilities and usage conditions referrent to version 0.0.3. Version 0.0.3 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
 
 ### Introduction
 
@@ -40,7 +40,7 @@ The program's viscid correction module, ```xfoil_visc.py```, currently depends o
 
 To install via pip, use:
 
-```pip3 install LovelacePM==0.0.2```
+```pip3 install LovelacePM==0.0.3```
 
 To clone and install directly from git, use:
 
