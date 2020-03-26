@@ -470,7 +470,7 @@ Module containing definitions necessary for non-lifting body definitions
 functions
 =========
 
-Re2e6
+Re2e5
 Blausius_Cf_l
 Prandtl_1_7th
 circdefsect
@@ -489,7 +489,7 @@ body_section
 body_panel
 body
 '''
-body.Re2e6.__doc__='''Re2e6(Re): simplest possible turbulence criterion (returns Re>2e6)'''
+body.Re2e5.__doc__='''Re2e5(Re): simplest possible turbulence criterion (returns Re>2e5)'''
 body.Blausius_Cf_l.__doc__='''Blausius_Cf_l(Re): returns friction coefficient according to Blausius\'s laminar boundary layer formulation'''
 body.Prandtl_1_7th.__doc__='''Prandtl_1_7th(Re): returns friction coefficient for laminar boundary layers according to Prandtl\'s 1-7th power rule'''
 body.prevline_organize.__doc__='''prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False): organizes previous lines for list to be provided to prevlines dictionary in Solid.addpatch 
@@ -623,7 +623,7 @@ body.body.patchcompose.__doc__='''patchcompose(leftqueue=[], rightqueue=[], upqu
     thdisc_downleft=20, thdisc_downright=20, tolerance=5e-5): compose four panel patches (upleft: between upper and left queues; downright: between lower and rightmost queues; etc.) to model the body at hand.
     thdisc_[patch] arguments set discretization levels for each of the four patches. xdisc sets discretization in the x axis, as np.interp(xstrategy(np.linspace(0.0, 1.0, xdisc+1)), np.array([0.0, 1.0]), 
     np.array([x1, x2]))). Angular discretization in patches is defined likewise. tolerance is provided as an argument for Solid.addpatch() routine (check its referrence for further detail)'''
-body.body.apply_eqflatplate.__doc__='''apply_eqflatplate(rho=1.225, Uinf=1.0, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies, 
+body.body.apply_eqflatplate.__doc__='''apply_eqflatplate(rho=1.225, Uinf=1.0, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies, 
 according to given turbulence criteria (function of local Reynolds returning boolean, True if turbulent) and rules for turbulent and laminar friction coefficients (function of local Reynolds,
 returning floats), values for sld.Cfs[p] in the Solid instance the body at hand is bound to. Leads to approximation of viscous effects on the non-lifting body. Custom rules may be applied by means of kwargs'''
 body.body.bodypanel_plotnormals.__doc__='''bodypanel_plotnormals(xlim=[], ylim=[], zlim=[], factor=1.0): function to plot normal vectors (given by third row of body_panel.Mtosys coordinate system matrix)
@@ -705,7 +705,7 @@ aircraft.aircraft.edit_parameters.__doc__='''edit_parameters(pardict, echo=True)
 and sideslip angle to 5 deg. If echo is True, method aircraft.parameter_report() is ran at the end. If the key to a control surface as registered in aircraft.controlset is provided, its state variable within
 the controlset dictionary will be set to the value provided in pardict, in degrees. Angles are input and output in degrees and kept in variables in radians. Angular velocities are provided normalized by Uinf 
 and reference dimensions'''
-aircraft.aircraft.bodies_eqflatplate_apply.__doc__='''bodies_eqflatplate_apply(rho=1.225, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies equivalent flat
+aircraft.aircraft.bodies_eqflatplate_apply.__doc__='''bodies_eqflatplate_apply(rho=1.225, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies equivalent flat
 plate correction for friction coefficient according to given criteria for all bodies bound to the aircraft according to current freestream parameters. Check body.apply_eqflatplate() reference for further detail'''
 aircraft.aircraft.eulersolve.__doc__='''eulersolve(echo=True, damper=0.0): runs Solid.eulersolve() with the present freestream parameters set for the aircraft. Time report is presented if echo is True.
 A Thikhonov regularization (with damping coefficient set by damper kwarg) can be performed with the AIC matrix if damper is non-zero.'''
@@ -765,11 +765,13 @@ classes
 
 polar_correction
 '''
-xfoil_visc.polar_data.__doc__='''polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None): returns alphas, Cls, Cds, Cms arrays
-for Xfoil-calculated polar. Airfoil is searched for (with .dat extension if ext_apped==True) in afldir directory, or current directory if it is of length 0. Elements of aseq list should be,
-respectively, first angle of attack, last angle of attack and desired step in AOAs for polar composition. visc==True sets Reynolds number to kwarg Re. M sets Mach number. iter kwarg sets maximum number of
-iterations for quasi-simultaneous viscid inviscid coupling. flap, if present, defines a length=3 list with, respectively, the x-axis chord percentage for the flap\'s axis, the thickness percentage for the
-given axis and its deflection in degrees.
+xfoil_visc.polar_data.__doc__='''polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None, npan=300, LE_con=0.4, inverse=False): 
+returns alphas, Cls, Cds, Cms arrays for Xfoil-calculated polar. Airfoil is searched for (with .dat extension if ext_apped==True) in afldir directory, or current directory if it is of length 0. 
+Elements of aseq list should be, respectively, first angle of attack, last angle of attack and desired step in AOAs for polar composition. 
+visc==True sets Reynolds number to kwarg Re. M sets Mach number. iter kwarg sets maximum number of iterations for quasi-simultaneous viscid inviscid coupling. 
+flap, if present, defines a length=3 list with, respectively, the x-axis chord percentage for the flap\'s axis, the thickness percentage for the
+given axis and its deflection in degrees. npan and LE_con are, respectively, the number of panels to be used for Xfoil\'s panel method and their concentration in the leading edge.
+Chosen angles of attack are inverted (for horizontal tails and likewise inverted airfoil surfaces) if inverse is True.
 
 WARNING: aseq and iter kwargs may have to be changed to obtain better polars. Non-converged AOAs are not returned: check alphas array in returned values to detect converged angles of attack'''
 xfoil_visc.read_polar.__doc__='''read_polar(poldir='', polname='n4412', ext_append=True, echo=True, cubic=True): reads polar from directory poldir (or current directory if none is provided)

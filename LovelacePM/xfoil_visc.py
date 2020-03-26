@@ -21,7 +21,7 @@ import platform as plat
 
 ''' Xfoil automation to temporarily supply the absense of a parallel, estimative boundary layer solver '''
 
-def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None):
+def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None, npan=300, LE_con=0.4, inverse=False):
     #flap variable: [x_hinge, y_hinge, deflection(angles)]. aseq: same input as required for xfoil command
     ordir=os.getcwd()
     if len(afldir)==0:
@@ -36,7 +36,7 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
     else:
         aflname=name
     file_exists=os.path.exists(aflname)
-    alphas=np.linspace(aseq[0], aseq[1], aseq[2])
+    alphas=np.arange(aseq[0], aseq[1]+aseq[2], aseq[2])
     Cls=2*pi*np.radians(alphas)
     Cds=np.zeros(np.shape(alphas))
     Cms=np.zeros(np.shape(alphas))
@@ -44,6 +44,10 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
         cmds+=['load '+aflname]
         if flap!=None:
             cmds+=['gdes\nflap\n'+str(flap[0])+'\n'+str(flap[1])+'\n'+str(flap[2])+'\n']
+        cmds+=['ppar']
+        cmds+=['n '+str(npan)]
+        cmds+=['r '+str(LE_con)]
+        cmds+=[' ']*2
         cmds+=['oper']
         if visc:
             cmds+=['visc '+str(Re)]
@@ -51,10 +55,9 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
         cmds+=['iter '+str(iter)]
         cmds+=['pacc']
         cmds+=['temppolar.plr\n']
-        cmds+=['aseq']
-        cmds+=[str(aseq[0])]
-        cmds+=[str(aseq[1])]
-        cmds+=[str(aseq[2])]
+        for a in np.arange(aseq[0], aseq[1], aseq[2]):
+            cmds+=['a']
+            cmds+=[str((-1 if inverse else 1)*a)]
         cmds+=['\nquit\n']
         xfoil=threading.Thread()
         if plat.system()=='Windows':
@@ -94,13 +97,36 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
     return alphas, Cls, Cds, Cms
 
 class polar_correction:
-    def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
+    def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
         self.Re_low=Re_low
         self.Re_high=Re_high
-        self.alphas_Re_low, self.Cls_Re_low, self.Cds_Re_low, self.Cms_Re_low=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
-            aseq=aseq, Re=Re_low, M=Mach, visc=True, iter=iter)
-        self.alphas_Re_high, self.Cls_Re_high, self.Cds_Re_high, self.Cms_Re_high=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
-            aseq=aseq, Re=Re_high, M=Mach, visc=True, iter=iter)
+        amed=(aseq[0]+aseq[1])/2
+        alphas_Re_low1, Cls_Re_low1, Cds_Re_low1, Cms_Re_low1=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
+            aseq=[amed, aseq[1], aseq[2]], Re=Re_low, M=Mach, visc=True, iter=iter)
+        alphas_Re_high1, Cls_Re_high1, Cds_Re_high1, Cms_Re_high1=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
+            aseq=[amed, aseq[1], aseq[2]], Re=Re_high, M=Mach, visc=True, iter=iter)
+        alphas_Re_low2, Cls_Re_low2, Cds_Re_low2, Cms_Re_low2=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
+            aseq=[amed-aseq[2], aseq[0], -aseq[2]], Re=Re_low, M=Mach, visc=True, iter=iter)
+        alphas_Re_high2, Cls_Re_high2, Cds_Re_high2, Cms_Re_high2=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
+            aseq=[amed-aseq[2], aseq[0], -aseq[2]], Re=Re_high, M=Mach, visc=True, iter=iter)
+        self.alphas_Re_low=np.hstack((alphas_Re_low1, alphas_Re_low2))
+        self.Cls_Re_low=np.hstack((Cls_Re_low1, Cls_Re_low2))
+        self.Cds_Re_low=np.hstack((Cds_Re_low1, Cds_Re_low2))
+        self.Cms_Re_low=np.hstack((Cms_Re_low1, Cms_Re_low2))
+        order=np.argsort(self.alphas_Re_low)
+        self.alphas_Re_low=self.alphas_Re_low[order]
+        self.Cls_Re_low=self.Cls_Re_low[order]
+        self.Cds_Re_low=self.Cds_Re_low[order]
+        self.Cms_Re_low=self.Cms_Re_low[order]
+        self.alphas_Re_high=np.hstack((alphas_Re_high1, alphas_Re_high2))
+        self.Cls_Re_high=np.hstack((Cls_Re_high1, Cls_Re_high2))
+        self.Cds_Re_high=np.hstack((Cds_Re_high1, Cds_Re_high2))
+        self.Cms_Re_high=np.hstack((Cms_Re_high1, Cms_Re_high2))
+        order=np.argsort(self.alphas_Re_high)
+        self.alphas_Re_high=self.alphas_Re_high[order]
+        self.Cls_Re_high=self.Cls_Re_high[order]
+        self.Cds_Re_high=self.Cds_Re_high[order]
+        self.Cms_Re_high=self.Cms_Re_high[order]
         self.alphas_inviscid, self.Cls_inviscid, self.Cds_inviscid, self.Cms_inviscid=polar_data(name=name, afldir=afldir, ext_append=ext_append, \
             aseq=aseq, M=Mach, visc=False, iter=iter)
         if len(name)!=0:

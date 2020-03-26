@@ -3,6 +3,38 @@
 
 This README refers to capabilities and usage conditions referrent to version 0.0.3. Version 0.0.3 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
 
+### Quick start
+
+To quickly analysie an ONERA M6 wing, start by importing the package and defining its dimensions:
+
+```
+from LovelacePM import *
+from math import tan, radians
+
+b=1.1963; croot=0.806; taper=0.56; sweep=26.7
+
+polar_nm6=polar_correction(name='NACAM6', iter=300, aseq=[-6.0, 18.0, 0.5], Re_low=2e5, Re_high=4e5)
+
+root_sect=wing_section(afl='NACAM6', c=croot, xdisc=30, correction=polar_nm6, Re=rho*Uinf*croot/mu) #CA_position set to origin as default
+left_tip_sect=wing_section(afl='NACAM6', c=croot*taper, CA_position=np.array([b*tan(radians(sweep)), -b, 0.0]), closed=True, xdisc=30)
+right_tip_sect=wing_section(afl='NACAM6', c=croot*taper, CA_position=np.array([b*tan(radians(sweep)), b, 0.0]), closed=True, xdisc=30)
+
+sld=Solid()
+
+left_wingquad=wing_quadrant(sld, sect1=left_tip_sect, sect2=root_sect)
+right_wingquad=wing_quadrant(sld, sect1=root_sect, sect2=right_tip_sect)
+wng=wing(sld, wingquads=[left_wingquad, right_wingquad])
+
+acft=aircraft(sld, elems=[wng])
+
+wng.patchcompose(ydisc=50)
+
+acft.addwake()
+acft.eulersolve()
+acft.forces_report()
+acft.plot_gammas(sld, wings=[wng])
+```
+
 ### Introduction
 
 This program is meant to provide optimized access to three-dimentional, viscous-corrected potential flow calculations in the easy-to-access fashion preferred for optimization purposes in academia.

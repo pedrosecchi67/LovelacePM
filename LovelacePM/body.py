@@ -16,8 +16,8 @@ from utils import *
 from paneller import *
 
 #turbulence criterion for flat plate equivalence in parasite drag estimation
-def Re2e6(Re):
-    return Re>2e6
+def Re2e5(Re):
+    return Re>2e5
 
 #Blausius's solution laminar friction coefficient
 def Blausius_Cf_l(Re):
@@ -390,7 +390,7 @@ class body: #body definition class for center definition to obtain polar cooridi
             'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
         for panlist in paninds:
             self.paninds+=panlist
-    def apply_eqflatplate(self, rho=1.225, Uinf=1.0, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
+    def apply_eqflatplate(self, rho=1.225, Uinf=1.0, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         #all rule parameters should be provided as a function of the local Reynolds number
         for p in self.paninds:
             local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/nu

@@ -18,7 +18,7 @@ from aerodynamic_output import *
 a=0.0
 Uinf=15
 rho=1.225
-nu=1.72*10e-5
+mu=1.72*10e-5
 b=1.2
 taper=0.5
 croot=0.2
@@ -101,7 +101,7 @@ plt.legend()
 plt.show()'''
 #sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 #sld.plotgeometry(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2])
-'''print('npanels: ', sld.npanels)
+print('npanels: ', sld.npanels)
 plot_Cps(sld, elems=[wing_left, wing_right])
 plot_Cls(sld, wings=[wing_left, wing_right])
 plot_Cds(sld, wings=[wing_left, wing_right])
@@ -111,4 +111,4 @@ plot_Cps(sld, elems=[horz_emp])
 plot_Cls(sld, wings=[horz_emp])
 plot_Cds(sld, wings=[horz_emp])
 plot_Cms(sld, wings=[horz_emp])
-plot_gammas(sld, wings=[horz_emp])'''
+plot_gammas(sld, wings=[horz_emp])

@@ -134,6 +134,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.forcesavailable=False
         self.stabavailable=False
         self.massavailable=False
+        self.haseqflatplate=False
         self.hascorrections=any([wng.hascorrection() for wng in self.wings])
 
         #defining plotting limits
@@ -271,7 +272,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.haseqflatplate=False
         if echo:
             self.parameter_report()
-    def bodies_eqflatplate_apply(self, rho=1.225, nu=1.72*10e-5, turbulent_criterion=Re2e6, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
+    def bodies_eqflatplate_apply(self, rho=1.225, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         self.haseqflatplate=True
         for bdy in self.bodies:
             bdy.apply_eqflatplate(rho=rho, nu=nu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
@@ -282,7 +283,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         print('========Total Forces Report========')
         if self.hascorrections:
             if self.haseqflatplate:
-                str_Cf='+local Cf estimation'
+                if self.haseqflatplate:
+                    str_Cf='+local Cf estimation'
             else:
                 str_Cf=''
             print('Inviscid'+str_Cf+' case: ')
