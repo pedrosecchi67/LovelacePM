@@ -1,9 +1,10 @@
 !FORTRAN 90 subroutines to optimize mathematical operations, currently including:
 ! 1- AIC generation
 ! 2- Calculation of local self-induced velocity based on adjacent lines
-! 3- Quickly calculate argument in yz plane
-! 4- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
-! 5- Generating complete field analysis at arbitrary control point for Trefftz induced drag analysis and 
+! 3- Converting AIC matrix from 3D format to normal influence coefficients, imposing Neumann condition
+! 4- Quickly calculate argument in yz plane
+! 5- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
+! 6- Generating complete field analysis at arbitrary control point for Trefftz induced drag analysis and 
 ! free wake wrapping
 subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
     integer, intent(IN) :: npan, nlin
@@ -45,6 +46,20 @@ subroutine self_influence(nlin, nloc, lines, solution, S, nvec, loclines, vdv)
 
     vdv=vdv/(nloc*S)
 end subroutine self_influence
+
+subroutine aicm_norm_conv(npan, aicm3, nvectmat, aicm)
+    integer, intent(IN) :: npan
+    real(8), intent(IN) :: aicm3(1:3, 1:npan, 1:npan), nvectmat(1:npan, 1:3)
+    real(8), intent(OUT) :: aicm(1:npan, 1:npan)
+
+    integer :: i, j
+
+    do i=1, npan
+        do j=1, npan
+            aicm(i, j)=dot_product(aicm3(1:3, i, j), nvectmat(i, 1:3))
+        end do
+    end do
+end subroutine aicm_norm_conv
 
 subroutine pointarg(point1, point2, arg)
     real(8), intent(IN) :: point1(1:3), point2(1:3)

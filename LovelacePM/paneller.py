@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import scipy.sparse as sps
 import time as tm
-from matplotlib.cm import jet
+import multiprocessing as mp
+import os
 
 import toolkit
 from utils import *
@@ -21,6 +22,12 @@ class Panel: #Panel data type
     def nocirc_enforce(self, linind):
         if linind!=-1:
             self.no_selfinf+=[linind]
+
+def subprocess_genaicm(queue1, queue2): #generic function to unpack AICM calc order from multiprocessing 
+    #queue and deliver it to calculating function in toolkit
+    order=queue1.get()
+    AICM=toolkit.aicm_lines_gen(order[2], order[3])
+    queue2.put((order[0], order[1], AICM))
 
 class Solid:
     def __init__(self, sldlist=[], wraparounds=[]): #solid data type
@@ -313,6 +320,8 @@ class Solid:
         #self.iscontiguous(tolerance=tolerance)
     def gen_panline(self): #generate panel-line correspondence matrix
         self.panline_matrix=np.zeros((self.nlines, self.npanels), dtype='double')
+        conlist=[]
+        invlist=[]
         for i in range(self.npanels):
             lininds=np.array(self.panels[i].lines+self.panels[i].wakelines)
             lintemp=lininds[lininds>0]
@@ -320,19 +329,41 @@ class Solid:
             lintemp=lininds[lininds<0]
             self.panline_matrix[-lintemp-1, i]=-1.0
         self.panline_matrix=sps.csr_matrix(self.panline_matrix)
+    def addorder(self, queue, colmat, ind1, ind2): #add order to queue for subprocess to compute AICM from rows ind1 to ind2
+        queue.put((ind1, ind2, self.lines[ind1:ind2, :, :], colmat))
     def genaicm(self): #call FORTRAN backend to generate AIC matrix
-        colmat=np.array([[0.0, 0.0, 0.0]]*self.npanels, dtype='double')
+        colmat=np.zeros((self.npanels, 3))
+        nvectmat=np.zeros((self.npanels, 3))
         for i in range(len(self.panels)):
             colmat[i, :]=self.panels[i].colpoint
-        self.aicm3_line=toolkit.aicm_lines_gen(self.lines, colmat)
+            nvectmat[i, :]=self.panels[i].nvector
+        ncpus=mp.cpu_count()
+        calclims=np.linspace(0, self.nlines, ncpus+1)
+        calclims=[int(c) for c in calclims]
+        calclims=[[calclims[i], calclims[i+1]] for i in range(ncpus)]
+        queue1=mp.Queue()
+        queue2=mp.Queue()
+        for i in range(len(calclims)):
+            self.addorder(queue1, colmat, ind1=calclims[i][0], ind2=calclims[i][1])
+        processes=[]
+        for i in range(ncpus):
+            processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
+        for p in processes:
+            #p.daemon=True
+            p.start()
+        ordresults=[]
+        for i in range(ncpus):
+            ordresults+=[queue2.get()]
+        for p in processes:
+            p.join()
+        self.aicm3_line=np.zeros((3, self.npanels, self.nlines))
+        for ordresult in ordresults:
+            self.aicm3_line[:, :, ordresult[0]:ordresult[1]]=ordresult[2]
         self.gen_panline()
         self.aicm3=np.zeros((3, self.npanels, self.npanels))
         for i in range(3):
             self.aicm3[i, :, :]=self.aicm3_line[i, :, :]@self.panline_matrix
-        self.aicm=np.zeros((self.npanels, self.npanels), dtype='double')
-        for i in range(self.npanels):
-            for j in range(self.npanels):
-                self.aicm[i, j]=self.aicm3[:, i, j]@self.panels[i].nvector
+        self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
     def gen_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
         for i in range(self.npanels):

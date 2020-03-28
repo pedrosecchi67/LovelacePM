@@ -393,7 +393,7 @@ class body: #body definition class for center definition to obtain polar cooridi
     def apply_eqflatplate(self, rho=1.225, Uinf=1.0, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         #all rule parameters should be provided as a function of the local Reynolds number
         for p in self.paninds:
-            local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/nu
+            local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/mu
             if turbulent_criterion(local_Re):
                 self.sld.Cfs[p]=Cf_t_rule(local_Re)
             else:

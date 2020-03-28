@@ -275,7 +275,7 @@ class aircraft: #class to ease certain case studies for full aircraft
     def bodies_eqflatplate_apply(self, rho=1.225, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         self.haseqflatplate=True
         for bdy in self.bodies:
-            bdy.apply_eqflatplate(rho=rho, nu=nu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
+            bdy.apply_eqflatplate(rho=rho, mu=mu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0):
         self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*self.bref*2*self.Uinf, q=self.q*2*self.cref*self.Uinf, \
             r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True)

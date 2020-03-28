@@ -13,9 +13,7 @@ from math import tan, radians
 
 b=1.1963; croot=0.806; taper=0.56; sweep=26.7
 
-polar_nm6=polar_correction(name='NACAM6', iter=300, aseq=[-6.0, 18.0, 0.5], Re_low=2e5, Re_high=4e5)
-
-root_sect=wing_section(afl='NACAM6', c=croot, xdisc=30, correction=polar_nm6, Re=rho*Uinf*croot/mu) #CA_position set to origin as default
+root_sect=wing_section(afl='NACAM6', c=croot, xdisc=30) #CA_position set to origin as default
 left_tip_sect=wing_section(afl='NACAM6', c=croot*taper, CA_position=np.array([b*tan(radians(sweep)), -b, 0.0]), closed=True, xdisc=30)
 right_tip_sect=wing_section(afl='NACAM6', c=croot*taper, CA_position=np.array([b*tan(radians(sweep)), b, 0.0]), closed=True, xdisc=30)
 

@@ -98,6 +98,7 @@ lineadjust
 iscontiguous
 end_preprocess
 gen_panline
+addorder
 genaicm
 gen_farfield
 gen_farfield_derivative
@@ -173,6 +174,7 @@ paneller.Solid.plotnormals.__doc__='''plotnormals(xlim=[], ylim=[], zlim=[], fac
 Sets plot limits if provided in non-empty kwargs'''
 paneller.Solid.eulersolve.__doc__='''eulersolve(target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True): computes complete euler solution through calls for 
 Solid.genvbar, gennvv, genaicm, solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True'''
+paneller.Solid.addorder.__doc__='''addorder(self, queue, colmat, ind1, ind2): adds order for multiprocessing queue for subprocess_genaicm function to calculate AIC matrix\'s columns ind1 to ind2'''
 
 utils.__doc__='''
 Module containing geometry processing, list trimming and other utilities for other modules

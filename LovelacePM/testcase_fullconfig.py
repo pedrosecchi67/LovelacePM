@@ -33,13 +33,13 @@ n4412_polar=polar_correction(name='n4412')
 
 fuselage=standard_body(sld, defsect=circdefsect, body_thdisc=50, body_width=fuselage_width, nose_loc=np.array([-fuselage_aftlen, 0.0, -0.01]))
 
-sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/nu, closed=True)
-sect2=wing_section(CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/nu)
+sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
+sect2=wing_section(CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
 
 wingquad_left=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 
-sect3=wing_section(CA_position=np.array([0.0, fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/nu)
-sect4=wing_section(CA_position=np.array([0.0, b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/nu, closed=True)
+sect3=wing_section(CA_position=np.array([0.0, fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
+sect4=wing_section(CA_position=np.array([0.0, b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
 
 wingquad_right=wing_quadrant(sld, sect1=sect3, sect2=sect4)
 
@@ -50,11 +50,11 @@ wing_right.trim_bybody(fuselage, sectside=1)
 wing_left.trim_bybody(fuselage, sectside=2)
 
 stabsect1=wing_section(CA_position=np.array([fuselage_rearlen, -0.3, 0.3]), inverse=True, c=0.05, incidence=-radians(0.0), xdisc=30, \
-    correction=n4412_polar, Re=Uinf*rho*0.05/nu, closed=True)
+    correction=n4412_polar, Re=Uinf*rho*0.05/mu, closed=True)
 stabsect2=wing_section(CA_position=np.array([fuselage_rearlen, 0.0, 0.3]), inverse=True, c=0.1, incidence=-radians(0.0), xdisc=30, \
-    correction=n4412_polar, Re=Uinf*rho*0.1/nu, closed=True)
+    correction=n4412_polar, Re=Uinf*rho*0.1/mu, closed=True)
 stabsect3=wing_section(CA_position=np.array([fuselage_rearlen, 0.3, 0.3]), inverse=True, c=0.05, incidence=-radians(0.0), xdisc=30, \
-    correction=n4412_polar, Re=Uinf*rho*0.05/nu, closed=True)
+    correction=n4412_polar, Re=Uinf*rho*0.05/mu, closed=True)
 
 horz_emp_left=wing_quadrant(sld, sect1=stabsect1, sect2=stabsect2)
 horz_emp_right=wing_quadrant(sld, sect1=stabsect2, sect2=stabsect3)
@@ -78,7 +78,7 @@ fuselage.patchcompose(leftqueue=[wing_left], rightqueue=[wing_right], xdisc=60, 
 acft.edit_parameters({'a':a, 'Uinf':Uinf})
 acft.addwake()
 sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
-acft.bodies_eqflatplate_apply(rho=rho, nu=nu)
+acft.bodies_eqflatplate_apply(rho=rho, mu=mu)
 acft.eulersolve()
 acft.forces_report()
 acft.stabreport()
