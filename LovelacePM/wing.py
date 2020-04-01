@@ -270,7 +270,8 @@ class wing_quadrant: #wing region between two airfoil sections
         for panlist in paninds:
             self.paninds+=panlist
         extra_paninds=paninds
-        TE_extra=paninds[0] #for wake generation
+        TE_extra=paninds[0] 
+        TE_extra.reverse() #for wake generation
         self.extraright_lines=[vertlines[i][0] for i in range(len(vertlines))]
         self.extraright_points=[points[i][0] for i in range(len(points))]
         self.extraleft_lines=[vertlines[i][-1] for i in range(len(vertlines))]
@@ -290,8 +291,7 @@ class wing_quadrant: #wing region between two airfoil sections
         for panlist in paninds:
             self.paninds+=panlist
         intra_paninds=paninds
-        TE_intra=paninds[0]
-        TE_intra.reverse() #for wake generation
+        TE_intra=paninds[0] #for wake generation
         self.intraright_lines=[vertlines[i][-1] for i in range(len(vertlines))]
         self.intraright_points=[points[i][-1] for i in range(len(points))]
         self.intraleft_lines=[vertlines[i][0] for i in range(len(vertlines))]
@@ -610,9 +610,10 @@ class wing:
             ax.set_zlim3d(zlim[0], zlim[1])
         if show:
             plt.show()
-    def genwakepanels(self, offset=1000.0, a=0.0, b=0.0):
+    def genwakepanels(self, offset=1000.0, a=0.0, b=0.0, wakedisc=10, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2):
+        prevleft=[]
         for quad in self.wingquads:
-            quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=[[0, 0]], a=a, b=b)
+            _, prevleft=quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=[[0, 0]], a=a, b=b, offset=offset, disc=wakedisc, strategy=strategy, prevleft=prevleft, leftinvert=True)
     def hascorrection(self):
         return all([wngqd.hascorrection() for wngqd in self.wingquads])
     def calc_corrected_forces(self): #compose correction forces from each wing quadrant

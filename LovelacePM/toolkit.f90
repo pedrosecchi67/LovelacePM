@@ -175,6 +175,7 @@ subroutine get_field_influence(nlin, lines, solution_lines, colpoint, tolerance,
         b=lines(j, 1:3, 2)-colpoint
         na=norm2(a)
         nb=norm2(b)
+        !add to velocity components only if the vortex segment's generating line does not include the point upon which
         if(norm2((/a(2)*b(3)-a(3)*b(2), a(3)*b(1)-a(1)*b(3), a(1)*b(2)-a(2)*b(1)/))>na*nb*tolerance) then
             dv=dv+solution_lines(j)*(((/a(2)*b(3)-a(3)*b(2), &
             a(3)*b(1)-a(1)*b(3), &

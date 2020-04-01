@@ -15,7 +15,7 @@ from aircraft import *
 from xfoil_visc import *
 from aerodynamic_output import *
 
-a=radians(0.0)
+a=0.0
 Uinf=0.05
 b=1.2
 taper=1.0
@@ -23,15 +23,15 @@ croot=0.3
 
 sld=Solid()
 
-sect1=wing_section(afl='sd7062', CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=50, closed=True)#, xstrategy=lambda x: x)
-sect2=wing_section(afl='sd7062', CA_position=np.array([0.0, b/2, 0.0]), c=croot, xdisc=50, closed=True)#, xstrategy=lambda x: x)
+sect1=wing_section(afl='sd7062', CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=30, closed=True)#, xstrategy=lambda x: x)
+sect2=wing_section(afl='sd7062', CA_position=np.array([0.0, b/2, 0.0]), c=croot, xdisc=30, closed=True)#, xstrategy=lambda x: x)
 
 wng1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 wng=wing(sld, wingquads=[wng1])
 acft=aircraft(sld, elems=[wng], Sref=b*croot*(1+taper)/2)
-wng.patchcompose(ydisc=50)
+wng.patchcompose(ydisc=30)
 acft.edit_parameters({'a':a, 'Uinf':Uinf})
-acft.addwake()
+acft.addwake(wakedisc=10, offset=10.0)
 
 '''sld.plotnormals(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6], factor=0.1)
 sld.plotnormals(xlim=[-0.2, 0.2], ylim=[-0.8, -0.4], zlim=[-0.2, 0.2], factor=0.1)'''

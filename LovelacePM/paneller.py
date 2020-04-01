@@ -29,11 +29,22 @@ def subprocess_genaicm(queue1, queue2): #generic function to unpack AICM calc or
     AICM=toolkit.aicm_lines_gen(order[2], order[3])
     queue2.put((order[0], order[1], AICM))
 
+def subprocess_geninfs(queue1, queue2): #generic function to unpack local velocity field calc order from multiprocessing queue
+    #and deliver it after invoking toolkit functions
+    order=queue1.get()
+    vs=[]
+    for strip in order[1]:
+        vs+=[[]]
+        for pt in strip:
+            vs[-1]+=[toolkit.get_field_influence(order[2], order[3], pt, order[4])]
+    queue2.put((order[0], vs))
+
 class Solid:
     def __init__(self, sldlist=[], wraparounds=[]): #solid data type
         self.panels=[]
         self.lines=[]
         self.addto=[]
+        self.wakestrips=[]
         self.problematic=[]
         self.npanels=0
         self.nlines=0
@@ -141,56 +152,67 @@ class Solid:
         self.panels+=[Panel(llist)]
         return self.npanels-1
     def addwakepanel(self, refup, refdown, indup=0, indown=2, offsetleft=np.array([1000.0, 0.0, 0.0]), offsetright=np.array([]), \
-        tolerance=0.00005): #add line segments correspondent to panel wake, and remove "inup-th"/"indown-th" line segment in the panel's list
+        tolerance=0.00005, disc=10, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2, prevleft=[], leftinvert=False, prevright=[], rightinvert=False):
+        #add line segments correspondent to panel wake, and remove "inup-th"/"indown-th" line segment in the panel's list
         if len(offsetright)==0:
             offsetright=offsetleft
         self.nwake+=1
+        wakedisc=strategy(np.linspace(0.0, 1.0, disc+1))
         if indup<len(self.panels[refup].lines):
             te_linind=self.panels[refup].lines.pop(indup)
         else:
             te_linind=self.panels[refup].wakelines.pop(indup-len(self.panels[refup].lines))
         self.panels[refup].TE_line=te_linind
-        if te_linind>0:
-            #first wake vortex
-            p0=self.lines[te_linind-1, :, 0]
-            p1=self.lines[te_linind-1, :, 0]+offsetleft
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
-            #farfield wake vortex
-            p0=p1
-            p1=self.lines[te_linind-1, :, 1]+offsetright
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
-            #second wake vortex
-            p0=p1
-            p1=self.lines[te_linind-1, :, 1]
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
+        coords=self.line_getcoords(te_linind)
+        indsup=[]
+        if len(prevright)==0:
+            for i in range(disc):
+                p0=coords[:, 0]+offsetright*wakedisc[i]
+                p1=coords[:, 0]+offsetright*wakedisc[i+1]
+                indsup+=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)+1]
         else:
-            #first wake vortex
-            p0=self.lines[-te_linind-1, :, 1]
-            p1=self.lines[-te_linind-1, :, 1]+offsetright
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
-            #farfield wake vortex
-            p0=p1
-            p1=self.lines[-te_linind-1, :, 0]+offsetleft
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
-            #second wake vortex
-            p0=p1
-            p1=self.lines[-te_linind-1, :, 0]
-            indsup=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)]
+            if rightinvert:
+                indsup+=[-prevright[i] for i in range(len(prevright)-1, -1, -1)]
+            else:
+                indsup+=prevright
+        if len(prevleft)==0:
+            for i in range(disc, 0, -1):
+                p0=coords[:, 1]+offsetleft*wakedisc[i]
+                p1=coords[:, 1]+offsetleft*wakedisc[i-1]
+                indsup+=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)+1]
+        else:
+            if leftinvert:
+                indsup+=[-prevleft[i] for i in range(len(prevleft)-1, -1, -1)]
+            else:
+                indsup+=prevleft
         self.panels[refup].wakelines+=indsup
+        self.wakestrips+=[indsup]
         if refdown!=-1:
             te_linind=self.panels[refdown].lines.pop(indown)
             self.panels[refdown].wakelines+=[-l for l in indsup]
             self.panels[refdown].TE_line=te_linind
-    def genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0): #generate wake panels based in list of TE panel combinations
+        return indsup[disc:], indsup[:disc] #return left, right wake lines
+    def genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0, disc=10, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2, \
+        prevleft=[], prevright=[], leftinvert=False, rightinvert=False):
+        #generate wake panels based in list of TE panel combinations
         #wakecombs: list of lists, first element in sublist is upper surface panel
         #wakeinds: list of lists indicating corresponding wake vortex line segment index to apply kutta condition to
         if len(wakeinds)==0:
             wakeinds=[[0, 2]]
         trimlist(len(wakecombs), wakeinds)
-        for i in range(len(wakecombs)):
+        self.addto+=[[wakecombs[0][0], wakecombs[0][1]]]
+        left, prevleft=self.addwakepanel(wakecombs[0][0], wakecombs[0][1], indup=wakeinds[0][0], indown=wakeinds[0][0], \
+            offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset, disc=disc, strategy=strategy, prevleft=prevleft, leftinvert=leftinvert)
+        for i in range(1, len(wakecombs)-1):
             self.addto+=[[wakecombs[i][0], wakecombs[i][1]]]
-            self.addwakepanel(wakecombs[i][0], wakecombs[i][1], indup=wakeinds[i][0], indown=wakeinds[i][0], \
-                offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset)
+            _, prevleft=self.addwakepanel(wakecombs[i][0], wakecombs[i][1], indup=wakeinds[i][0], indown=wakeinds[i][0], \
+                offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset, disc=disc, strategy=strategy, \
+                    prevleft=prevleft, leftinvert=True)
+        self.addto+=[[wakecombs[-1][0], wakecombs[-1][1]]]
+        _, prevleft=self.addwakepanel(wakecombs[-1][0], wakecombs[-1][1], indup=wakeinds[-1][0], indown=wakeinds[-1][0], \
+            offsetleft=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)])*offset, disc=disc, strategy=strategy, \
+                prevleft=prevleft, leftinvert=True, prevright=prevright, rightinvert=rightinvert)
+        return left, prevleft
         #straight, alpha and beta defined single wake panel as default
     def panel_getcoords(self, p): #get coordinates for panel based on line vectors and lists
         if p.lines[0]<0:
@@ -426,7 +448,7 @@ class Solid:
         self.delphi[:, 0]+=self.selfinf_mat_x@self.solution_line
         self.delphi[:, 1]+=self.selfinf_mat_y@self.solution_line
         self.delphi[:, 2]+=self.selfinf_mat_z@self.solution_line
-    def solve(self, damper=0.0, target=np.array([])): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
+    def solve(self, damper=0.0, target=np.array([]), wakeiter=0, ponder=True): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
         #self.iaicm=toolkit.aicm_inversion(self.aicm, damper)
         if len(target)==0:
             target=np.zeros(self.npanels) # target: nvv aimed at, for stability derivative computation and/or viscous-inviscid coupling
@@ -439,12 +461,11 @@ class Solid:
 
         self.solution=self.iaicm@tango
         self.solution_line=self.panline_matrix@self.solution
+        self.gen_selfinf_mat()
+        self.solavailable=True
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
-        self.gen_selfinf_mat()
         self.gen_selfinf()
-        self.solavailable=True
-        #self.calcforces()
     def calcpress(self, Uinf=1.0):
         for i in range(self.npanels):
             self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
@@ -462,6 +483,8 @@ class Solid:
         dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
         return dCps
+    def wake_rollup(self, tolerance=10e-5, ponder=True): #calculate velocity at nodes located at wake line midpoints and update the lines
+        pass
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
@@ -513,10 +536,10 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def eulersolve(self, target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True):
+    def eulersolve(self, target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True, wakeiter=0, ponder=True):
         if echo:
             print('========Euler solution=======')
-            print(self.npanels, ' panels')
+            print(self.npanels, ' panels, ', self.nlines, ' lines')
         t=tm.time()
         self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
         self.gennvv()
@@ -527,7 +550,7 @@ class Solid:
         if echo:
             print('AIC matrix generation: '+str(tm.time()-t)+' s')
         t=tm.time()
-        self.solve(damper=damper)
+        self.solve(damper=damper, wakeiter=wakeiter, ponder=ponder)
         self.calcpress(Uinf=Uinf)
         self.calcforces()
         if echo:

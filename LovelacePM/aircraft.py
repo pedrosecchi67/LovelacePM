@@ -162,11 +162,11 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.plotlim=max([abs(xmax), abs(ymax), abs(zmax), abs(xmin), abs(ymin), abs(zmin)])
     def hascontrol(self):
         return len(self.controlset)!=0
-    def addwake(self, offset=1000.0):
+    def addwake(self, offset=1000.0, wakedisc=1, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2):
         #once the wake has been added, one can end geometry pre-processing of panels in question:
         self.sld.end_preprocess()
         for wng in self.wings:
-            wng.genwakepanels(offset=offset, a=self.a, b=self.b)
+            wng.genwakepanels(offset=offset, a=self.a, b=self.b, wakedisc=wakedisc, strategy=strategy)
     def calcforces(self, echo=True):
         self.CX=sum([self.sld.forces[i][0] for i in range(self.sld.npanels)])/self.Sref
         self.CY=sum([self.sld.forces[i][1] for i in range(self.sld.npanels)])/self.Sref

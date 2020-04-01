@@ -77,6 +77,7 @@ aicm3: same for each panel (shape (3, npanels, npanels), aicm3[i, :, :]=aicm3_li
 aicm: aerodynamic influence coefficient matrix based on vortex rings and the application of Neumann contour conditions
 selfinf_mat_x, y, z: sparse csr matrixes so that -gradGamma=(selfinf_mat_x@solution_line, selfinf_mat_y@solution_line, selfinf_mat_z@solution_line)
 iaicm: inverse of Solid.aicm, using Thikhonov regularization if non-zero damper argument is provided to Solid.solve
+wakestrips: list of lists. Each sublist indicates a set of indexed wake line indexes. To be accessed in order to identify wake lines for rollup calculations
 
 =======
 methods
