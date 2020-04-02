@@ -173,9 +173,12 @@ paneller.Solid.plotgeometry.__doc__='''plotgeometry(xlim=[], ylim=[], zlim=[], v
 if velfield==True, plots vectors correspondent to each panel\'s local velocity vector multiplier by a factor (\'factor\' kwarg) for easier visualization of velocity field'''
 paneller.Solid.plotnormals.__doc__='''plotnormals(xlim=[], ylim=[], zlim=[], factor=1.0): plots panels as wireframe and their normal vectors p.nvector, scaled by factor kwarg so as to ease visualization.
 Sets plot limits if provided in non-empty kwargs'''
-paneller.Solid.eulersolve.__doc__='''eulersolve(target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True): computes complete euler solution through calls for 
-Solid.genvbar, gennvv, genaicm, solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True'''
+paneller.Solid.eulersolve.__doc__='''eulersolve(target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True, beta=0.0): computes complete euler solution through calls for 
+Solid.genvbar, gennvv, genaicm, solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True. Applies PG correction factor beta'''
 paneller.Solid.addorder.__doc__='''addorder(self, queue, colmat, ind1, ind2): adds order for multiprocessing queue for subprocess_genaicm function to calculate AIC matrix\'s columns ind1 to ind2'''
+paneller.Solid.panel_calcSn.__doc__='''panel_calcSn(p): recalculates area and normal vector for panel p'''
+paneller.Solid.PG_apply.__doc__='''PG_apply(beta, a, b): applies PG correction to all panel and line positions (including wake panels) according to correction factor beta and freestream parameters a and b'''
+paneller.Solid.PG_remove.__doc__='''PG_remove(beta, a, b): reverses effects from Solid.PG_apply(beta, a, b) and converts AIC matrixes and self-influence matrixes to compressible values'''
 
 utils.__doc__='''
 Module containing geometry processing, list trimming and other utilities for other modules
@@ -200,7 +203,7 @@ utils.read_afl.__doc__='''read_afl(afl, afldir='', ext_append=False, header_line
 incidence=0.0, inverse=False, closed=False): reads airfoil in afl (adding extension .dat if ext_append==True), eliminating header_lines lines from Selig format file. Repanels airfoil with 
 x discretization disc, using x points as strategy(np.linspace(0.0, 1.0, disc+1)), strategy being a lambda. remove_TE_gap sets the first and last points to their mean point, eliminating trailing edge
 gap. \'True\' is indicated for inviscid calculations. if extra_intra==True, points referrent to upper and lower airfoil surface are also returned, in tuple. if inverse==True, the airfoil\'s y axis is inverted.
-Returns aflpts, array of shape (2*xdisc+1, 2)'''
+Returns aflpts, array of shape (2*xdisc+1, 2). Argument sweep compresses the airfoil's y axis dimension so as to apply sweep effect on thickness'''
 utils.wing_afl_positprocess.__doc__='''wing_afl_positprocess(afl, gamma=0.0, c=1.0, ypos=0.0, xpos=0.0, zpos=0.0): returns three-dimensionalized version of airfoil in points in array afl as returned by
 utils.read_afl. Twisted around x axis by gamma (radians), with chord c and positions in three dimensional axes by correspondent kwargs'''
 utils.trimlist.__doc__='''trimlist(n, l): trims list l to length n by reproducing its first element, if it is not empty and len(l)<n'''
@@ -214,6 +217,11 @@ utils.gen_circdefsect_coords.__doc__='''gen_circdefsect_coords(disc): returns po
 utils.gen_squaredefsect_coords.__doc__='''gen_squaredefsect_coords(disc): returns points for body.squaredefsect default body section, with goven input panel discretization'''
 utils.smooth_angle_defsect_coords.__doc__='''smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20): returns coordinates for body.smooth_angle_defsect function, with given semi-ellipsoid
 concordance radii r_1x (lower, x-axis), r_2x (upper, x-axis), r_1y and r_2y'''
+utils.Mtostream.__doc__='''Mtostream(a, b): returns a matrix for coordinate system conversion to a stream-based coordinate system'''
+utils.Mstreamtouni.__doc__='''Mstreamtouni(a, b): returns the inverse of utils.Mtostream(a, b)'''
+utils.PG_xmult.__doc__='''PG_xmult(beta, a, b): returns a matrix to multiply point arrays so as to apply PG correction over their location, based on correction factor beta=sqrt(1.0-M**2)'''
+utils.PG_inv_xmult.__doc__='''PG_inv_xmult(beta, a, b): returns the inverse of PG_xmult'''
+utils.PG_vtouni.__doc__='''PG_vtouni(beta, a, b): returns matrix to multiply velocities by so as to convert them from incompressible PG circunstances to compressible values'''
 
 control.__doc__='''
 Module for definition of controls, control axes and degrees of freedom for aicraft and wing classes.
@@ -336,10 +344,11 @@ applycontrols
 '''
 wing.wing_section.__init__.__doc__='''__init__(afldir='', c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
         header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False, \
-            correction=None, Re=2e6):
+            correction=None, Re=2e6, sweep=0.0):
             initializes wing section with airfoil \'afl\' collected from directory afldir (if len(afldir)==0: afldir=os.getcwd()) through utils.read_afl,
             with arguments header_lines, disc=xdisc, remove_TE_gap, inverse and strategy=xstrategy. closed kwarg sets wing section to closed wingtip if True.
-            if correction!=None, a correction from module xfoil_visc is provided, and Reynolds Re should be considered to generate a viscous polar for the given section'''
+            if correction!=None, a correction from module xfoil_visc is provided, and Reynolds Re should be considered to generate a viscous polar for the given section.
+            Argument sweep compresses the airfoil's y axis dimension so as to apply sweep effect on thickness'''
 wing.wing_section.hascorrection.__doc__='''hascorrection(): returns whether or not xfoil viscous correction is available (i. e. self.correction!=None)'''
 wing.wing_section.getcorrection.__doc__='''getcorrection(Re=2e6): sets lambas self.alphas, self.Cls, self.Cds, self.Cms for wing_section instance'''
 wing.wing_section.addcontrols.__doc__='''addcontrols(controls=[], control_multipliers=[], control_axpercs=[]): add controls with percentages in chordwise direction and multipliers
@@ -568,7 +577,8 @@ __call__
 body.body_section.__init__.__doc__='''__init__(center=np.array([0.0, 0.0, 0.0]), coords=np.vstack((np.sin(np.linspace(0.0, 2*pi, 360)), \
         np.cos(np.linspace(0.0, 2*pi, 360)))).T, R=1.0, y_expand=1.0, z_expand=1.0, cubic=True): constructor of a section with coordinates based on threedimensionalization
         of yz-plane coordinates coords, with maximum dimension R, around center. Scaled in y and z axis by multipliers y_expand and z_expand. If cubic is True, the object\'s
-        polar_rule lambda function will be defined as a cubic spline. Otherwise, as a linear interpolation'''
+        polar_rule lambda function (responsible for interpolating points along the section, with polar coordinates as arguments) 
+        will be defined as a cubic spline. Otherwise, as a linear interpolation'''
 body.body_section.__call__.__doc__='''__call__(th): returns point around center, with polar coordinates in [-pi; pi], clockwise around x axis with zero on z axis, and radius as defined by
 body_section.polar_rule'''
 

@@ -3,6 +3,9 @@ import os
 from math import *
 from LovelacePM import *
 
+ordir=os.getcwd()
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 fuselage_height=2.2
 cabin_screen_height=0.8
 motor_spinner_height=0.9
@@ -104,3 +107,5 @@ acft.plotgeometry()#(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+
 #sld.plotnormals(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5, 0.5], factor=0.05)
 acft.eulersolve()
 acft.forces_report()
+
+os.chdir(ordir)
