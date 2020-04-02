@@ -12,7 +12,7 @@ import os
 import toolkit
 
 def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
-    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False):
+    remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False, sweep=0.0):
     ordir=os.getcwd()
     if len(afldir)==0:
 	    os.chdir(ordir)
@@ -34,6 +34,7 @@ def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=
     aflpts=np.array(aflpts)
     if inverse:
         aflpts[:, 1]=-aflpts[:, 1]
+    aflpts[:, 1]*=cos(sweep)
     if incidence!=0.0:
         R=np.array([[cos(incidence), sin(incidence)], [-sin(incidence), cos(incidence)]])
         if inverse:
@@ -160,3 +161,23 @@ def smooth_angle_defsect_coords(r_1x, r_2x, r_1y, r_2y, ldisc=30, thdisc=20):
         thdisc)))
     coords=np.vstack((coords, linear_pts(np.array([1.0-r_1x, -1.0]), np.array([0.0, -1.0]), n_low, endpoint=True)))
     return coords
+
+def Mtostream(a, b): #define coordinate transformation matrix to convert to streamwise coordinate system
+    Mtost=np.zeros((3, 3))
+    Mtost[0, :]=np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')
+    Mtost[1, :]=np.cross(np.array([0.0, 0.0, 1.0]), Mtost[0, :])
+    Mtost[1, :]/=lg.norm(Mtost[1, :])
+    Mtost[2, :]=np.cross(Mtost[0, :], Mtost[1, :])
+    return Mtost
+
+def Mstreamtouni(a, b): #same but inverted
+    return Mtostream(a, b).T
+
+def PG_xmult(beta, a, b): #matrix to which multiply a point array to apply Prandtl-Glauert's correction
+    return Mstreamtouni(a, b)@np.diag(np.array([1.0, beta, beta]))@Mtostream(a, b)
+
+def PG_inv_xmult(beta, a, b): #inverse of the matrix before
+    return lg.inv(PG_xmult(beta, a, b))
+
+def PG_vtouni(beta, a, b): #returns matrix converting incompressible PG calculated velocities to compressible case
+    return Mstreamtouni(a, b)@np.diag(np.array([1.0, beta, beta]))@Mtostream(a, b)

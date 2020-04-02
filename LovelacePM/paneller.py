@@ -256,6 +256,15 @@ class Solid:
             coords[:, 0:3]=temp
             coords[:, -1]=temp[:, -1]
         return coords
+    def panel_calcSn(self, p): #update panel area and normal vector
+        l=self.line_getcoords(p.lines[0])
+        p.nvector=np.cross(l[:, 1]-p.colpoint, l[:, 0]-p.colpoint)
+        p.S=lg.norm(p.nvector)
+        p.nvector/=p.S
+        p.S/=2
+        for i in range(1, len(p.lines)):
+            l=self.line_getcoords(p.lines[i])
+            p.S+=lg.norm(np.cross(l[:, 1]-p.colpoint, l[:, 0]-p.colpoint))/2
     def line_getcoords(self, ind): #return line coordinates in order presented in panel, based on panel.lines element
         if ind>0:
             return self.lines[ind-1, :, :]
@@ -313,7 +322,8 @@ class Solid:
                         print('WARNING: '+str(i)+' panel is not contiguous')
                         self.problematic+=[abs(l)-1 for l in self.panels[i].lines]
                         break
-    def end_preprocess(self, paninds=[], tolerance=5e-5): #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
+    def end_preprocess(self, paninds=[], tolerance=5e-5, initialize=True, check=True):
+        #calculate panel areas before they are altered by wake generation. Must be run before it, and terrible
         #consequences may arise if done otherwise
         u=np.array([0.0, 0.0, 0.0])
         v=np.array([0.0, 0.0, 0.0])
@@ -353,18 +363,20 @@ class Solid:
                 print('WARNING: panel '+str(n)+' displayed incoherent area '+str(p.S)+' with '+str(len(p.lines))+' lines')
             n+=1
         #initialize result vectors
-        self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
-        self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
-        self.nvv=np.array([0.0]*len(self.panels), dtype='double')
-        self.solution=np.array([0.0]*len(self.panels), dtype='double')
-        self.solavailable=False
-        self.Cps=np.array([0.0]*len(self.panels), dtype='double')
-        self.Cfs=np.zeros(len(self.panels), dtype='double')
-        self.forces=[]
-        self.moments=[]
+        if initialize:
+            self.delphi=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
+            self.vbar=np.array([[0.0, 0.0, 0.0]]*len(self.panels), dtype='double')
+            self.nvv=np.array([0.0]*len(self.panels), dtype='double')
+            self.solution=np.array([0.0]*len(self.panels), dtype='double')
+            self.solavailable=False
+            self.Cps=np.array([0.0]*len(self.panels), dtype='double')
+            self.Cfs=np.zeros(len(self.panels), dtype='double')
+            self.forces=[]
+            self.moments=[]
         #adjust lines in case any is set inconsistently with respect to anti-clockwise convention in panel
-        self.lineadjust()
-        #self.iscontiguous(tolerance=tolerance)
+        if check:
+            self.lineadjust()
+            #self.iscontiguous(tolerance=tolerance)
     def gen_panline(self): #generate panel-line correspondence matrix
         self.panline_matrix=np.zeros((self.nlines, self.npanels), dtype='double')
         for i in range(self.npanels):
@@ -441,7 +453,7 @@ class Solid:
         return newvec
     def genvbar(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate freestream velocity vector. Angular velocities are raw (rad/s), not normalized by Uinf or dimensions
         self.vbar=self.gen_farfield(Uinf, a=a, b=b, p=p, q=q, r=r)
-    def gennvv(self): #Generate vector containing normal velocities
+    def gennvv(self, beta=1.0): #Generate vector containing normal velocities
         for i in range(self.npanels):
             self.nvv[i]=self.panels[i].nvector@self.vbar[i, :]
     def gen_selfinf_mat(self): #generate self-influence matrix according to Srivastava's equations, with each line's vorticity as an input
@@ -489,7 +501,6 @@ class Solid:
 
         self.solution=self.iaicm@tango
         self.solution_line=self.panline_matrix@self.solution
-        self.gen_selfinf_mat()
         self.solavailable=True
         if wakeiter!=0:
             wakelininds=np.array(list(self.wakeline_inds))
@@ -595,6 +606,46 @@ class Solid:
         for l in self.wakelines:
             l.v=0.0
             l.nabut=0
+    def PG_apply(self, beta, a, b): #beta indicates PG correction factor for compressibility
+        PG_apmat=PG_xmult(beta, a, b)
+        #convert lines
+        self.lines[:, 0, :]=PG_apmat[0, 0]*self.lines[:, 0, :]+PG_apmat[0, 1]*self.lines[:, 1, :]+PG_apmat[0, 2]*self.lines[:, 2, :]
+        self.lines[:, 1, :]=PG_apmat[1, 0]*self.lines[:, 0, :]+PG_apmat[1, 1]*self.lines[:, 1, :]+PG_apmat[1, 2]*self.lines[:, 2, :]
+        self.lines[:, 2, :]=PG_apmat[2, 0]*self.lines[:, 0, :]+PG_apmat[2, 1]*self.lines[:, 1, :]+PG_apmat[2, 2]*self.lines[:, 2, :]
+        #convert panels
+        for p in self.panels:
+            p.colpoint=PG_apmat@p.colpoint
+            self.panel_calcSn(p)
+        #convert wake panels
+        for strip in self.wakestrips:
+            for p in strip:
+                p.center=PG_apmat@p.center
+    def PG_remove(self, beta, a, b): #remove effect of previously imposed PG correction
+        PG_apmat=PG_inv_xmult(beta, a, b)
+        PG_apv=PG_vtouni(beta, a, b)
+        #convert lines
+        self.lines[:, 0, :]=PG_apmat[0, 0]*self.lines[:, 0, :]+PG_apmat[0, 1]*self.lines[:, 1, :]+PG_apmat[0, 2]*self.lines[:, 2, :]
+        self.lines[:, 1, :]=PG_apmat[1, 0]*self.lines[:, 0, :]+PG_apmat[1, 1]*self.lines[:, 1, :]+PG_apmat[1, 2]*self.lines[:, 2, :]
+        self.lines[:, 2, :]=PG_apmat[2, 0]*self.lines[:, 0, :]+PG_apmat[2, 1]*self.lines[:, 1, :]+PG_apmat[2, 2]*self.lines[:, 2, :]
+        #convert panels
+        for p in self.panels:
+            p.colpoint=PG_apmat@p.colpoint
+            self.panel_calcSn(p)
+        #convert wake panels
+        for strip in self.wakestrips:
+            for p in strip:
+                p.center=PG_apmat@p.center
+        #convert self influence and aicm3_line matrixes
+        self.selfinf_mat_x=PG_apv[0, 0]*self.selfinf_mat_x+PG_apv[0, 1]*self.selfinf_mat_y+PG_apv[0, 2]*self.selfinf_mat_z
+        self.selfinf_mat_y=PG_apv[1, 0]*self.selfinf_mat_x+PG_apv[1, 1]*self.selfinf_mat_y+PG_apv[1, 2]*self.selfinf_mat_z
+        self.selfinf_mat_z=PG_apv[2, 0]*self.selfinf_mat_x+PG_apv[2, 1]*self.selfinf_mat_y+PG_apv[2, 2]*self.selfinf_mat_z
+        #self.aicm remains the same
+        self.aicm3_line[0, :, :]=PG_apv[0, 0]*self.aicm3_line[0, :, :]+PG_apv[0, 1]*self.aicm3_line[1, :, :]+PG_apv[0, 2]*self.aicm3_line[2, :, :]
+        self.aicm3_line[1, :, :]=PG_apv[1, 0]*self.aicm3_line[0, :, :]+PG_apv[1, 1]*self.aicm3_line[1, :, :]+PG_apv[1, 2]*self.aicm3_line[2, :, :]
+        self.aicm3_line[2, :, :]=PG_apv[2, 0]*self.aicm3_line[0, :, :]+PG_apv[2, 1]*self.aicm3_line[1, :, :]+PG_apv[2, 2]*self.aicm3_line[2, :, :]
+        self.aicm3[0, :, :]=PG_apv[0, 0]*self.aicm3[0, :, :]+PG_apv[0, 1]*self.aicm3[1, :, :]+PG_apv[0, 2]*self.aicm3[2, :, :]
+        self.aicm3[1, :, :]=PG_apv[1, 0]*self.aicm3[0, :, :]+PG_apv[1, 1]*self.aicm3[1, :, :]+PG_apv[1, 2]*self.aicm3[2, :, :]
+        self.aicm3[2, :, :]=PG_apv[2, 0]*self.aicm3[0, :, :]+PG_apv[2, 1]*self.aicm3[1, :, :]+PG_apv[2, 2]*self.aicm3[2, :, :]
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
@@ -646,7 +697,7 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def eulersolve(self, target=np.array([]), Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
+    def eulersolve(self, target=np.array([]), Uinf=1.0, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
         wakeiter=0, tolerance=1e-5):
         if echo:
             print('========Euler solution=======')
@@ -654,13 +705,16 @@ class Solid:
         t=tm.time()
         self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
         self.gennvv()
+        self.PG_apply(beta, a, b)
         if echo:
             print('Pre-processing: '+str(tm.time()-t)+' s')
         t=tm.time()
         self.genaicm()
+        self.gen_selfinf_mat()
         if echo:
             print('AIC matrix generation: '+str(tm.time()-t)+' s')
         t=tm.time()
+        self.PG_remove(beta, a, b)
         self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
         self.calcpress(Uinf=Uinf)
         self.calcforces()

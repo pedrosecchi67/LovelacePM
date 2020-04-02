@@ -21,8 +21,8 @@ class aircraft: #class to ease certain case studies for full aircraft
     #generate aircraft BEFORE patchcompose functions
     def parameter_report(self):
         print('Freestream parameters:')
-        print('%10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf'))
-        print('%10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf))
+        print('%10s %10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf', 'M'))
+        print('%10f %10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf, self.M))
         print('Geometry parameters:')
         print('%10s %10s %10s %10s' % ('Sref', 'cref', 'bref', 'AR'))
         print('%10f %10f %10f %10f' % (self.Sref, self.cref, self.bref, self.AR))
@@ -114,6 +114,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.q=0.0
         self.r=0.0
         self.Uinf=1.0
+        self.M=0.0
 
         self.CG=CG
         
@@ -264,6 +265,8 @@ class aircraft: #class to ease certain case studies for full aircraft
                 self.r=val
             elif par=='Uinf':
                 self.Uinf=val
+            elif par=='M':
+                self.M=val
             else:
                 self.controlset[par].state=radians(val)
         #reset result readiness
@@ -278,7 +281,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             bdy.apply_eqflatplate(rho=rho, mu=mu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0, tolerance=1e-5, wakeiter=0):
         self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*self.bref*2*self.Uinf, q=self.q*2*self.cref*self.Uinf, \
-            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter)
+            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
     def forces_report(self):
         print('========Total Forces Report========')
         if self.hascorrections:

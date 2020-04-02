@@ -17,14 +17,14 @@ from control import *
 class wing_section: #class to define wing section based on airfoil info
     def __init__(self, afldir='', c=1.0, incidence=0.0, gamma=0.0, CA_position=np.array([0.0, 0.0, 0.0]), afl='n4412', \
         header_lines=1, xdisc=10, remove_TE_gap=True, inverse=False, xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, closed=False, \
-            correction=None, Re=2e6):
+            correction=None, Re=2e6, sweep=0.0):
         #closed: return camberline as set of points. for closing wings
         #control axpercs: axis percentage of chord position
         self.CA_position=CA_position
         self.c=c
         self.closed=closed
         self.points=wing_afl_positprocess(read_afl(afldir=afldir, afl=afl, ext_append=True, header_lines=header_lines, disc=xdisc, \
-            remove_TE_gap=remove_TE_gap, incidence=radians(incidence), inverse=inverse, strategy=xstrategy), \
+            remove_TE_gap=remove_TE_gap, incidence=radians(incidence), inverse=inverse, strategy=xstrategy, sweep=radians(sweep)), \
                 gamma=radians(gamma), c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
         self.correction=correction
