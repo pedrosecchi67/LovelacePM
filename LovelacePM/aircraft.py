@@ -276,9 +276,9 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.haseqflatplate=True
         for bdy in self.bodies:
             bdy.apply_eqflatplate(rho=rho, mu=mu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
-    def eulersolve(self, echo=True, damper=0.0):
+    def eulersolve(self, echo=True, damper=0.0, tolerance=1e-5, wakeiter=0):
         self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*self.bref*2*self.Uinf, q=self.q*2*self.cref*self.Uinf, \
-            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True)
+            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter)
     def forces_report(self):
         print('========Total Forces Report========')
         if self.hascorrections:

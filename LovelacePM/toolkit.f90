@@ -6,6 +6,7 @@
 ! 5- Calculate point arguments and local coord. system matrix for input surface abutment guiding panel
 ! 6- Generating complete field analysis at arbitrary control point for Trefftz induced drag analysis and 
 ! free wake wrapping
+! 7- Recalculate a specific set of columns of AIC matrix after wake rollup
 subroutine aicm_lines_gen(npan, nlin, lines, colpoints, aicm)
     integer, intent(IN) :: npan, nlin
     real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), colpoints(1:npan, 1:3)
@@ -184,3 +185,25 @@ subroutine get_field_influence(nlin, lines, solution_lines, colpoint, tolerance,
         end if
     end do   
 end subroutine get_field_influence
+
+subroutine aicm_lines_recalc(npan, nlin, nrecalc, lininds, lines, colpoints, aicm)
+    integer, intent(IN) :: npan, nlin, nrecalc, lininds(1:nrecalc)
+    real(8), intent(IN) :: lines(1:nlin, 1:3, 1:2), colpoints(1:npan, 1:3)
+    real(8), intent(OUT) :: aicm(1:3, 1:npan, 1:nrecalc)
+
+    integer :: i, n
+    real(8) :: a(3), b(3), na, nb
+
+    do i=1, npan
+        do n=1, nrecalc
+            a=lines(lininds(n), 1:3, 1)-colpoints(i, 1:3)
+            b=lines(lininds(n), 1:3, 2)-colpoints(i, 1:3)
+            na=norm2(a)
+            nb=norm2(b)
+            aicm(1:3, i, n)=(((/a(2)*b(3)-a(3)*b(2), &
+            a(3)*b(1)-a(1)*b(3), &
+            a(1)*b(2)-a(2)*b(1)/)*(1.0/na+1.0/nb))/&
+            (na*nb+dot_product(a, b)))/12.5663706
+        end do
+    end do
+end subroutine aicm_lines_recalc

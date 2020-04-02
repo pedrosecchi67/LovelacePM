@@ -29,15 +29,23 @@ def subprocess_genaicm(queue1, queue2): #generic function to unpack AICM calc or
     AICM=toolkit.aicm_lines_gen(order[2], order[3])
     queue2.put((order[0], order[1], AICM))
 
-def subprocess_geninfs(queue1, queue2): #generic function to unpack local velocity field calc order from multiprocessing queue
-    #and deliver it after invoking toolkit functions
-    order=queue1.get()
-    vs=[]
-    for strip in order[1]:
-        vs+=[[]]
-        for pt in strip:
-            vs[-1]+=[toolkit.get_field_influence(order[2], order[3], pt, order[4])]
-    queue2.put((order[0], vs))
+class WakeLine: #class encompassing info about a wake line. Made so as to compute deformation with wake rollup
+    def __init__(self, ind): #recieves signed index as input
+        self.ind=ind
+        self.v=np.zeros(3)
+        self.nabut=0
+        self.updateme=True
+        self.inverted=False
+    def addvel(self, v): #add velocity to be averaged
+        self.v+=v
+        self.nabut+=1
+
+class WakePanel:
+    def __init__(self, wl, wr, center): #add a wake panel based on adjacent lines
+        self.wl=wl
+        self.wr=wr
+        self.center=center
+        self.v=np.zeros(3)
 
 class Solid:
     def __init__(self, sldlist=[], wraparounds=[]): #solid data type
@@ -45,6 +53,8 @@ class Solid:
         self.lines=[]
         self.addto=[]
         self.wakestrips=[]
+        self.wakeline_inds=set([])
+        self.wakelines=set([])
         self.problematic=[]
         self.npanels=0
         self.nlines=0
@@ -164,34 +174,49 @@ class Solid:
             te_linind=self.panels[refup].wakelines.pop(indup-len(self.panels[refup].lines))
         self.panels[refup].TE_line=te_linind
         coords=self.line_getcoords(te_linind)
+        self.wakestrips+=[[]]
         indsup=[]
+        leftlines=[]
+        rightlines=[]
         if len(prevright)==0:
             for i in range(disc):
                 p0=coords[:, 0]+offsetright*wakedisc[i]
                 p1=coords[:, 0]+offsetright*wakedisc[i+1]
                 indsup+=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)+1]
+                rightlines+=[WakeLine(indsup[-1])]
         else:
             if rightinvert:
-                indsup+=[-prevright[i] for i in range(len(prevright)-1, -1, -1)]
+                rightlines=[prevright[i] for i in range(len(prevright)-1, -1, -1)]
+                indsup+=[-prevright[i].ind for i in range(len(prevright)-1, -1, -1)]
             else:
-                indsup+=prevright
+                indsup+=[prevright[i].ind for i in range(len(prevright))]
+                rightlines=prevright
         if len(prevleft)==0:
             for i in range(disc, 0, -1):
                 p0=coords[:, 1]+offsetleft*wakedisc[i]
                 p1=coords[:, 1]+offsetleft*wakedisc[i-1]
                 indsup+=[self.addline(np.vstack((p0, p1)).T, tolerance=tolerance)+1]
+                leftlines+=[WakeLine(indsup[-1])]
         else:
             if leftinvert:
-                indsup+=[-prevleft[i] for i in range(len(prevleft)-1, -1, -1)]
+                leftlines=[prevleft[i] for i in range(len(prevleft)-1, -1, -1)]
+                indsup+=[-prevleft[i].ind for i in range(len(prevleft)-1, -1, -1)]
             else:
-                indsup+=prevleft
+                indsup+=[prevleft[i].ind for i in range(len(prevleft))]
+                leftlines=prevleft
         self.panels[refup].wakelines+=indsup
-        self.wakestrips+=[indsup]
+        for l in leftlines+rightlines:
+            self.wakelines.add(l)
+        for lind in indsup:
+            self.wakeline_inds.add(abs(lind)-1)
         if refdown!=-1:
             te_linind=self.panels[refdown].lines.pop(indown)
             self.panels[refdown].wakelines+=[-l for l in indsup]
             self.panels[refdown].TE_line=te_linind
-        return indsup[disc:], indsup[:disc] #return left, right wake lines
+        for i in range(disc):
+            center=(self.line_midpoint(rightlines[i].ind)+self.line_midpoint(leftlines[disc-i-1].ind))/2
+            self.wakestrips[-1]+=[WakePanel(leftlines[disc-i-1], rightlines[i], center)]
+        return leftlines, rightlines #return left, right wake lines
     def genwakepanels(self, wakecombs=[], wakeinds=[], offset=1000.0, a=0.0, b=0.0, disc=10, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2, \
         prevleft=[], prevright=[], leftinvert=False, rightinvert=False):
         #generate wake panels based in list of TE panel combinations
@@ -342,8 +367,6 @@ class Solid:
         #self.iscontiguous(tolerance=tolerance)
     def gen_panline(self): #generate panel-line correspondence matrix
         self.panline_matrix=np.zeros((self.nlines, self.npanels), dtype='double')
-        conlist=[]
-        invlist=[]
         for i in range(self.npanels):
             lininds=np.array(self.panels[i].lines+self.panels[i].wakelines)
             lintemp=lininds[lininds>0]
@@ -391,6 +414,10 @@ class Solid:
         for i in range(self.npanels):
             newvec[i, :]=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([p, -q, r], dtype='double'), self.panels[i].colpoint)
         return newvec
+    def gen_wake_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream at wake panels
+        for strip in self.wakestrips:
+            for pan in strip:
+                pan.v=Uinf*np.array([cos(a)*cos(b), -cos(a)*sin(b), sin(a)], dtype='double')+np.cross(np.array([p, -q, r], dtype='double'), pan.center)
     def gen_farfield_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
         if par=='a':
@@ -448,7 +475,8 @@ class Solid:
         self.delphi[:, 0]+=self.selfinf_mat_x@self.solution_line
         self.delphi[:, 1]+=self.selfinf_mat_y@self.solution_line
         self.delphi[:, 2]+=self.selfinf_mat_z@self.solution_line
-    def solve(self, damper=0.0, target=np.array([]), wakeiter=0, ponder=True): #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
+    def solve(self, damper=0.0, target=np.array([]), wakeiter=0, Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, tolerance=1e-5, echo=True):
+        #generate Euler solution. Inverts AIC matrix with Tikhonov regularization if "damper" is set to non-zero value.
         #self.iaicm=toolkit.aicm_inversion(self.aicm, damper)
         if len(target)==0:
             target=np.zeros(self.npanels) # target: nvv aimed at, for stability derivative computation and/or viscous-inviscid coupling
@@ -463,6 +491,35 @@ class Solid:
         self.solution_line=self.panline_matrix@self.solution
         self.gen_selfinf_mat()
         self.solavailable=True
+        if wakeiter!=0:
+            wakelininds=np.array(list(self.wakeline_inds))
+            colmat=np.zeros((self.npanels, 3))
+            nvectmat=np.zeros((self.npanels, 3))
+            for i in range(len(self.panels)):
+                colmat[i, :]=self.panels[i].colpoint
+                nvectmat[i, :]=self.panels[i].nvector
+            if echo:
+                print('%18s | %5s %5s %5s' % ('Iteration', 'vcalc', 'roll', 'solve'))
+        for i in range(wakeiter): #iterate for wake generation
+            t0=tm.time()
+            self.gen_wake_farfield(Uinf=Uinf, a=a, b=b, p=p, q=q, r=r)
+            self.add_wakevels(tolerance=tolerance)
+            tvel=tm.time()
+            self.wake_rollup()
+            trol=tm.time()
+            self.aicm3_line[:, :, wakelininds]=toolkit.aicm_lines_recalc(wakelininds+1, self.lines, colmat)
+            for j in range(3):
+                self.aicm3[j, :, :]=self.aicm3_line[j, :, :]@self.panline_matrix
+            self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
+            if damper!=0.0:
+                self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
+            else:
+                self.iaicm=slg.inv(self.aicm)
+            self.solution=self.iaicm@tango
+            self.solution_line=self.panline_matrix@self.solution
+            tsol=tm.time()
+            print('%14s %3d | %5f %5f %5f' % ('Wake teration', i, tvel-t0, trol-tvel, tsol-trol))
+            
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
         self.gen_selfinf()
@@ -483,8 +540,61 @@ class Solid:
         dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
         return dCps
-    def wake_rollup(self, tolerance=10e-5, ponder=True): #calculate velocity at nodes located at wake line midpoints and update the lines
-        pass
+    def add_wakevels(self, tolerance=1e-5): #calculate velocities at wake panel control points and add to local velocity variables
+        for strip in self.wakestrips:
+            for p in strip:
+                p.v+=toolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
+    def wake_rollup(self): #calculate velocity at nodes located at wake line midpoints and update the lines
+        for strip in self.wakestrips:
+            for p in strip:
+                p.wl.addvel(p.v)
+                p.wr.addvel(p.v)
+        self.wakelines_deform()
+    def wakelines_deform(self): #deform wake lines according to computed velocity at panels between them
+        for l in self.wakelines:
+            l.v/=l.nabut
+            l.inverted=self.lines[abs(l.ind)-1, 0, 0]>self.lines[abs(l.ind)-1, 0, 1]
+            l.updateme=True
+        deltaxl=0.0
+        deltaxr=0.0
+        dvl=np.zeros(3)
+        dvr=np.zeros(3)
+        origin_left=np.zeros(3)
+        origin_right=np.zeros(3)
+        newleft=np.zeros(3)
+        newright=np.zeros(3)
+        for strip in self.wakestrips:
+            origin_left=self.lines[abs(strip[0].wl.ind)-1, :, 1 if strip[0].wl.inverted else 0]
+            origin_right=self.lines[abs(strip[0].wr.ind)-1, :, 1 if strip[0].wr.inverted else 0]
+            for i in range(len(strip)):
+                if strip[i].wl.updateme:
+                    deltaxl=abs(self.lines[abs(strip[i].wl.ind)-1, 0, 1]-self.lines[abs(strip[i].wl.ind)-1, 0, 0])
+                    dvl=strip[i].wl.v*deltaxl/(strip[i].wl.v[0])
+                    newleft=origin_left+dvl
+                    if strip[i].wl.inverted:
+                        self.lines[abs(strip[i].wl.ind)-1, :, 1]=origin_left
+                        self.lines[abs(strip[i].wl.ind)-1, :, 0]=newleft
+                    else:
+                        self.lines[abs(strip[i].wl.ind)-1, :, 0]=origin_left
+                        self.lines[abs(strip[i].wl.ind)-1, :, 1]=newleft
+                    origin_left=newleft
+                    strip[i].wl.updateme=False
+                if strip[i].wr.updateme:
+                    deltaxr=abs(self.lines[abs(strip[i].wr.ind)-1, 0, 1]-self.lines[abs(strip[i].wr.ind)-1, 0, 0])
+                    dvr=strip[i].wr.v*deltaxr/(strip[i].wr.v[0])
+                    newright=origin_right+dvr
+                    if strip[i].wr.inverted:
+                        self.lines[abs(strip[i].wr.ind)-1, :, 1]=origin_right
+                        self.lines[abs(strip[i].wr.ind)-1, :, 0]=newright
+                    else:
+                        self.lines[abs(strip[i].wr.ind)-1, :, 0]=origin_right
+                        self.lines[abs(strip[i].wr.ind)-1, :, 1]=newright
+                    origin_right=newright
+                    strip[i].wr.updateme=False
+                strip[i].center=(self.line_midpoint(strip[i].wr.ind)+self.line_midpoint(strip[i].wl.ind))/2
+        for l in self.wakelines:
+            l.v=0.0
+            l.nabut=0
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
         #plot geometry and local velocity vectors, either with or without wake panels
         fig=plt.figure()
@@ -536,7 +646,8 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def eulersolve(self, target=np.array([]), a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, Uinf=1.0, echo=True, wakeiter=0, ponder=True):
+    def eulersolve(self, target=np.array([]), Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
+        wakeiter=0, tolerance=1e-5):
         if echo:
             print('========Euler solution=======')
             print(self.npanels, ' panels, ', self.nlines, ' lines')
@@ -550,7 +661,7 @@ class Solid:
         if echo:
             print('AIC matrix generation: '+str(tm.time()-t)+' s')
         t=tm.time()
-        self.solve(damper=damper, wakeiter=wakeiter, ponder=ponder)
+        self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
         self.calcpress(Uinf=Uinf)
         self.calcforces()
         if echo:
