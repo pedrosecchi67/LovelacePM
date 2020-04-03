@@ -101,7 +101,7 @@ fuselage.patchcompose(leftqueue=[wing_left], rightqueue=[wing_right], xdisc=60, 
     thdisc_upleft=5, thdisc_downleft=5, thdisc_downright=5, thdisc_upright=5)
 ```
 
-Notice the arguments "leftqueue", "rightqueue", etc. in the "fuselage.patchcompose" method. They are lists identifying the lifting surfaces which are connected to the body a given side of it, ordered in x-axis\'s positive direction.
+Note the arguments "leftqueue", "rightqueue", etc. in the "fuselage.patchcompose" method. They are lists identifying the lifting surfaces which are connected to the body a given side of it, ordered in x-axis\'s positive direction.
 
 Arguments "thdisc_downleft", "thdisc_upright", etc. identify the angular discretization (in number of panels) specified for the body between queues "lowqueue" and "leftqueue", "upqueue" and "rightqueue", etc.
 
@@ -140,7 +140,7 @@ To check out the fuselage composed above, use
 from LovelacePM import *; from LovelacePM.monoplane import *
 ```
 
-Notice that a function with suffix "defsect" is used in the code above. A defsect is a lambda function that defines a body section based on data simpler than its point-by-point geometry - speciffically, its maximum dimension, center position in 3D space and y and z axis scale factors (to make it easier to transform a tubular into an egg-shape fuselage, if you so desire =D). If you want further info on what is a defsect and how to customize it, check out:
+Note that a function with suffix "defsect" is used in the code above. A defsect is a lambda function that defines a body section based on data simpler than its point-by-point geometry - speciffically, its maximum dimension, center position in 3D space and y and z axis scale factors (to make it easier to transform a tubular into an egg-shape fuselage, if you so desire =D). If you want further info on what is a defsect and how to customize it, check out:
 
 ```
 from LovelacePM import *
@@ -197,7 +197,7 @@ n4412_polar=polar_correction(name='n4412')
 sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
 ```
 
-Notice that, for the automation to work, **Xfoil must be located within the user's PATH environment variable.**
+Note that, for the automation to work, **Xfoil must be located within the user's PATH environment variable.**
 
 ## Contributing to LovelacePM
 
@@ -205,9 +205,9 @@ You can contribute to LovelacePM by assisting us in meeting the system requireme
 
 ### Introduction to the project
 
-This README refers to capabilities and usage conditions referrent to version 0.0.8. Version 0.0.8 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
+This README refers to capabilities and usage conditions referrent to version 0.1.0. Version 0.1.0 is a beta testing version and has not yet met all system requirements listed below.
 
-The project is subject to GNU GPL v3.0.
+This project is subject to GNU GPL v3.0.
 
 The system requirements defined for the final product are labelled below, along with their objective, numbered as:
 (1) - performance optimization in highly iterative optimization problems;
@@ -232,6 +232,9 @@ from LovelacePM import *
 #test case for AR 20 NACA 0012 wing at alpha=10 deg
 from LovelacePM.testcase_n0012_AR20 import *
 
+#test case for AR 5 NACA 0012 wing rotating at 3 deg/s and advancing at 1 ft/s, at AOA 0
+from LovelacePM.testcase_n0012_rotating import *
+
 #test case for sphere
 from LovelacePM.testcase_sphere import *
 
@@ -243,7 +246,8 @@ And compare with references in:
 
 1. For Euler flow over a sphere with stream flowing from pole to pole equal to 3/2 times its azimuthal polar coordinate;
 2. For Euler flow over a cilynder: tangential velocity equal to 2 times the sine of its polar coordinate;
-3. For Euler flow over an $$AR=20$$ NACA-0012 wing: a pressure distribution as in Maskew, B.: "Prediction of Subsonic Aerodynamic Characteristics: A Case for Low Order Panel Methods". Journal of Aircraft, Feb. 1982, pp 157-153.
+3. For Euler flow over an $$AR=20$$ NACA-0012 wing: a pressure distribution as in Maskew, B.: "Prediction of Subsonic Aerodynamic Characteristics: A Case for Low Order Panel Methods". Journal of Aircraft, Feb. 1982, pp 157-153;
+4. For Euler flow on a rotating NACA 0012 wing with free wake model: NASA Technical Memorandum 101024: Ashby, D., Dudley, M.: "Development and Validation of an Advanced Low Order Panel Method". Ames Research Center, Moffett Field, California, Oct. 1988.
 
 ### Code conventions
 

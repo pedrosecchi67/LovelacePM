@@ -11,7 +11,7 @@ extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f9
 
 setup(
     name="LovelacePM",
-    version="0.0.8",
+    version="0.1.0",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",

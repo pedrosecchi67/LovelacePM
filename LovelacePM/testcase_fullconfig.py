@@ -15,6 +15,9 @@ from aircraft import *
 from xfoil_visc import *
 from aerodynamic_output import *
 
+ordir=os.getcwd()
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 a=0.0
 Uinf=15
 rho=1.225
@@ -33,13 +36,13 @@ n4412_polar=polar_correction(name='n4412')
 
 fuselage=standard_body(sld, defsect=circdefsect, body_thdisc=50, body_width=fuselage_width, nose_loc=np.array([-fuselage_aftlen, 0.0, -0.01]))
 
-sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
-sect2=wing_section(CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
+sect1=wing_section(afl='n4412', CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
+sect2=wing_section(afl='n4412', CA_position=np.array([0.0, -fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
 
 wingquad_left=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 
-sect3=wing_section(CA_position=np.array([0.0, fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
-sect4=wing_section(CA_position=np.array([0.0, b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
+sect3=wing_section(afl='n4412', CA_position=np.array([0.0, fuselage_width/2, 0.0]), c=croot, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot/mu)
+sect4=wing_section(afl='n4412', CA_position=np.array([0.0, b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
 
 wingquad_right=wing_quadrant(sld, sect1=sect3, sect2=sect4)
 
@@ -79,7 +82,7 @@ acft.edit_parameters({'a':a, 'Uinf':Uinf})
 acft.addwake(offset=10.0, wakedisc=30, strategy=lambda x: x)
 sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
 acft.bodies_eqflatplate_apply(rho=rho, mu=mu)
-acft.eulersolve(wakeiter=5)
+acft.eulersolve(wakeiter=1)
 acft.forces_report()
 acft.stabreport()
 acft.balance()
@@ -112,3 +115,5 @@ plot_Cls(sld, wings=[horz_emp])
 plot_Cds(sld, wings=[horz_emp])
 plot_Cms(sld, wings=[horz_emp])
 plot_gammas(sld, wings=[horz_emp])
+
+os.chdir(ordir)

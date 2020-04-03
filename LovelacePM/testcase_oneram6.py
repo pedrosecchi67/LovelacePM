@@ -2,6 +2,9 @@ from LovelacePM import *
 import numpy as np
 from math import tan, radians
 
+ordir=os.getcwd()
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 b=1.1963; croot=0.806; taper=0.56; sweep=26.7
 alpha=5.0; Uinf=10.0
 
@@ -17,13 +20,18 @@ wng=wing(sld, wingquads=[left_wingquad, right_wingquad])
 
 acft=aircraft(sld, elems=[wng])
 acft.edit_parameters({'a':alpha, 'Uinf':Uinf, 'M':0.5})
+acft.plot_input()
 
 wng.patchcompose(ydisc=50)
+acft.addwake()
 acft.plotgeometry()
 
-acft.addwake()
 acft.eulersolve()
 acft.forces_report()
+acft.stabreport()
 plot_Cls(sld, wings=[wng])
+plot_Cds(sld, wings=[wng])
+plot_Cms(sld, wings=[wng])
+plot_Cps(sld, elems=[wng])
 
 os.chdir(ordir)
