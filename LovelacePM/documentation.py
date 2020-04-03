@@ -33,7 +33,7 @@ no_selfinf: non-indexed lines that will not be considered for surface gradient o
 Applicable for lines in wing tips, so as to reduce the superestimation of crosswash caused by the absence of a wing closing patch
 nvector: its normal vector, calculated in Solid.end_preprocess() method
 S: its area, calculated in Solid.end_preprocess() method
-colpoint: its collocation point (center), calculated in Solid.end_preprocess() method
+colpoint: its collocation point (center), calculated in Solid.end_preprocess() method and recalculated in PG correction using Solid.panel_calcSn() method
 
 =======
 methods
@@ -44,6 +44,57 @@ nocirc_enforce
 
 paneller.Panel.__init__.__doc__='''__init__(lines): initializes a Panel object with \'lines\' as its original line list. All other lists are initialized empty'''
 paneller.Panel.nocirc_enforce.__doc__='''nocirc_enforce(linind): adds line linind (inputed and kept as non-signalled) to no_selfinf list'''
+
+paneller.WakeLine.__doc__='''
+
+Class containing info about a wake line. Used in Solid class for free wake calculations
+
+=========
+variables
+=========
+
+ind: the line\'s signed index in Solid class instance
+nabut: number of panels to which the wake line is associated. Used for averaging the local air velocity vector based on values for adjacent panels
+v: velocity vector indicating local velocity based on which to define
+inverted: whether the line is oriented, within its associated Solid class instance, in the positive direction of x-axis.
+updateme: whether the line\'s geometry has already been updated in the current wake rollup iteration
+
+=======
+methods
+=======
+
+__init__
+addvel
+'''
+
+paneller.WakeLine.__init__.__doc__='''__init__(ind): constructor initializing a wake line with index ind in
+associated Solid class instance'''
+paneller.WakeLine.addvel.__doc__='''addvel(v): add velocity in argument v to wake line\'s calculated velocity
+for rollup (variable WakeLine.v) and add 1 to WakeLine.nabut. I. E. method to be executed to compute mean velocity
+between the one or two adjacent wake panels'''
+
+paneller.WakePanel.__doc__='''
+
+Class encompassing information about a wake panel
+
+=========
+variables
+=========
+
+center: point array locating the panel\'s center, in which velocities for wake rollup are calculated
+wl: pointer to WakeLine class instance located at the panel\'s left side
+wr: " right side
+v: air velocity calculated at the wake panel\'s center
+
+=======
+methods
+=======
+
+__init__
+'''
+
+paneller.WakePanel.__doc__='''__init__(wl, wr, center): instantiate a wake panel with WakeLine instances
+wl (left wake line) and wr (right wake line), with center indicated by argument (point array)'''
 
 paneller.Solid.__doc__='''
 
@@ -162,9 +213,10 @@ paneller.Solid.gen_selfinf_mat.__doc__='''gen_selfinf_mat(): generates variables
 to compute local vorticity surface gradient, used for surface velocity deduction as deduced by Ashok Srivastava in his papers'''
 paneller.Solid.gen_selfinf.__doc__='''gen_selfinf(): computes local vorticity gradient and adds its influence on local disturbance velocity as computed by Ashok Srivastava in his papers on Vortex Panel Method.
 Adds the computed contribution to Solid.delphi'''
-paneller.Solid.solve.__doc__='''solve(damper=0.0, target=np.array([])): computes solution and surface forces, with local panel transpiration (to enable viscid-inviscid coupling) input to \'target\'.
+paneller.Solid.solve.__doc__='''solve(damper=0.0, target=np.array([])wakeiter=0, Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, tolerance=1e-5, echo=True):
+computes solution and surface forces, with local panel transpiration (to enable viscid-inviscid coupling) input to \'target\'.
 if len(target)==0: target=np.zeros(npanels). A Thikhonov regularization is performed with damping coefficient \'damper\' if damper floating point kwarg is set as non-zero, thus solving even an ill-conditioned 
-AIC matrix'''
+AIC matrix. Wake iterations (with their number defined by wakeiter kwarg) are performed according to provided freestream arguments'''
 paneller.Solid.calcpress.__doc__='''calcpress(Uinf=1.0): calculates Solid.Cps based on Solid.vbar and Solid.delphi'''
 paneller.Solid.calcforces.__doc__='''calcforces(): calculates local forces and moments on each panel, based on Solid.Cps and Solid.Cfs'''
 paneller.Solid.calc_derivative.__doc__='''calc_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): calculates derivatives in local pressure coefficients as array dCps, differentiated by
@@ -616,21 +668,28 @@ patchcompose
 apply_eqflatplate
 bodypanel_plotnormals
 '''
-body.body.__init__.__doc__='''__init__(sld, sections=[], tolerance=0.00005): creates body object with sections in kwarg list, with given geometric tolerance for patch definition and bound to Solid object sld'''
-body.body.set_aircraft.__doc__='''set_aircraft(acft): binds the given non-lifting body to aircraft class instance acft'''
-body.body.find_body_intersect.__doc__='''find_body_intersect(p, u, tolerance=0.00005): find a contact point with a line defined by point p and vector u. Geometric tolerance is set for maximum distance between 
+body.body.__init__.__doc__='''__init__(sld, sections=[], tolerance=0.00005):
+creates body object with sections in kwarg list, with given geometric tolerance for patch definition and bound to Solid object sld'''
+body.body.set_aircraft.__doc__='''set_aircraft(acft):
+binds the given non-lifting body to aircraft class instance acft'''
+body.body.find_body_intersect.__doc__='''find_body_intersect(p, u, tolerance=0.00005):
+find a contact point with a line defined by point p and vector u. Geometric tolerance is set for maximum distance between 
 a panel and a point to define the latter\'s belonging to it'''
-body.body.plot_input.__doc__='''plot_input(fig=None, ax=None, show=False, xlim=[], ylim=[], zlim=[], colour='gray'): plot input body geometry as a wireframe. Use given figure and axes if not None, or create
+body.body.plot_input.__doc__='''plot_input(fig=None, ax=None, show=False, xlim=[], ylim=[], zlim=[], colour='gray'):
+plot input body geometry as a wireframe. Use given figure and axes if not None, or create
 new ones otheriwse. If show is True, plt.show() will be automatically ran. Otherwise, it must be externally executed'''
-body.body.surfinterp.__doc__='''surfinterp(th, x): returns point array, in 3D space, of a point in the non-lifting body\'s surface in x position in the x axis and th polar coordinate (in [-pi; pi], 0 at
+body.body.surfinterp.__doc__='''surfinterp(th, x):
+returns point array, in 3D space, of a point in the non-lifting body\'s surface in x position in the x axis and th polar coordinate (in [-pi; pi], 0 at
 z axis, positive orientation as clockwise around x axis)'''
-body.body.side_separate.__doc__='''side_separate(leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, xdisc=100): returns x-axis spacing (given by
-np.interp(xstrategy(np.linspace(0.0, 1.0, xdisc+1)), np.array([0.0, 1.0]), np.array([x1, x2]))) and the number of lines occupying each x-axis interval between queued lifting surfaces.
+body.body.side_separate.__doc__='''side_separate(leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, xdisc=100):
+returns x-axis spacing (given by np.interp(xstrategy(np.linspace(0.0, 1.0, xdisc+1)), np.array([0.0, 1.0]), np.array([x1, x2]))) 
+and the number of lines occupying each x-axis interval between queued lifting surfaces.
 returns lnlines, lxdisc, rnlines, rxdisc, unlines, uxdisc, dnlines, dxdisc. inlines designates the number of lines in intervals not occupied by lifting surfaces of queue i 
-(d for low, u for upper, r for right, l for left queue). ixdisc indicates an array giving the x-spacing control points for queue i'''
-body.body.theta_queueident.__doc__='''theta_queueident(queue, xspacing, intra=False, right=False, queueident=\'l\'): sets polar coordinates (in [-pi; pi], 0 at
-z axis, positive orientation as clockwise around x axis) for points defined by xspacing array, along a queue, following upper surface points (if intra==False, 
-lower if otherwise) of surfaces in queue list. Points in the rightmost sections of the wings contained in queue are fetched if right is True, or from the leftmost section if otherwise.
+(i being d for low, u for upper, r for right, l for left queue). ixdisc indicates an array giving the x-spacing control points for queue i'''
+body.body.theta_queueident.__doc__='''theta_queueident(queue, xspacing, intra=False, right=False, queueident=\'l\'): 
+sets polar coordinates (in [-pi; pi], 0 at z axis, positive orientation as clockwise around x axis) for points defined by xspacing array, along a queue, 
+following upper surface points (if intra==False, lower if otherwise) of surfaces in queue list. 
+Points in the rightmost sections of the wings contained in queue are fetched if right is True, or from the leftmost section if otherwise.
 queueident identifies the requested queue (d for low, u for upper, r for right, l for left queue)'''
 body.body.patchcompose.__doc__='''patchcompose(leftqueue=[], rightqueue=[], upqueue=[], leftqueue=[], xstrategy=lambda x: x, xdisc=100, thstrategy=lambda x: x, thdisc_upleft=20, thdisc_upright=20, \
     thdisc_downleft=20, thdisc_downright=20, tolerance=5e-5): compose four panel patches (upleft: between upper and left queues; downright: between lower and rightmost queues; etc.) to model the body at hand.
@@ -705,8 +764,10 @@ and viscosity corrections to moment coefficients according to the shift performe
 aircraft.aircraft.transp_to_cg.__doc__='''transp_to_CG(CG): transports the center of gravity of the aircraft at hand to point in kwarg CG, through successive calls to aircraft.transp_byvec()'''
 aircraft.aircraft.hascontrol.__doc__='''hascontrol(): evaluates whether or not the aircraft has any control surface, based on the length of its controlset dictionary. The dictionary is, in turn, generated 
 from each wing quadrant\'s control lists'''
-aircraft.aircraft.addwake.__doc__='''addwake(offset=1000.0): generates wakes for all lifting surfaces based on a given offset from the trailing edge (i. e. length of the trailing edge vortexes) and currently
-set freestream parameters. Must be ran after parameter definition and patch composing, though before Euler solution and post-processing'''
+aircraft.aircraft.addwake.__doc__='''addwake(offset=1000.0, wakedisc=1, strategy=lambda x: ((np.exp(x)-1.0)/(exp(1)-1.0))**2): 
+generates wakes for all lifting surfaces based on a given offset from the trailing edge (i. e. length of the trailing edge vortexes) and currently
+set freestream parameters. Must be ran after parameter definition and patch composing, though before Euler solution and post-processing.
+the wake is discretized in wakedisc panels queued in x-axis, with offset from trailing edge set as offset*strategy(np.linspace(0.0, 1.0, wakedisc+1))'''
 aircraft.aircraft.calcforces.__doc__='''calcforces(echo=True): calculates forces acting on the aircraft based on the Solid instance aircraft.sld\'s last ran Euler solution. If echo is True, method
 aircraft.forces_report() is ran in place. Viscous corrections are also computed in place (see variables dCX, dCY,... in the class\'s documentation)'''
 aircraft.aircraft.freestream_derivative.__doc__='''freestream_derivative(par=\'a\'): calculates derivative of unitary streamwise (u) vector and its perpendicular vector v, parallel to lift, in respect to
@@ -720,8 +781,8 @@ the controlset dictionary will be set to the value provided in pardict, in degre
 and reference dimensions'''
 aircraft.aircraft.bodies_eqflatplate_apply.__doc__='''bodies_eqflatplate_apply(rho=1.225, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th): applies equivalent flat
 plate correction for friction coefficient according to given criteria for all bodies bound to the aircraft according to current freestream parameters. Check body.apply_eqflatplate() reference for further detail'''
-aircraft.aircraft.eulersolve.__doc__='''eulersolve(echo=True, damper=0.0): runs Solid.eulersolve() with the present freestream parameters set for the aircraft. Time report is presented if echo is True.
-A Thikhonov regularization (with damping coefficient set by damper kwarg) can be performed with the AIC matrix if damper is non-zero.'''
+aircraft.aircraft.eulersolve.__doc__='''eulersolve(echo=True, damper=0.0, wakeiter=0): runs Solid.eulersolve() with the present freestream parameters set for the aircraft. Time report is presented if echo is True.
+A Thikhonov regularization (with damping coefficient set by damper kwarg) can be performed with the AIC matrix if damper is non-zero. wakeiter iterations of wake rollup are executed'''
 aircraft.aircraft.forces_report.__doc__='''forces_report(): prints all force and moment coefficients available (and their viscous corrected equivalents). If none is available, method aircraft.calcforces() is ran'''
 aircraft.aircraft.plot_input.__doc__='''plot_input(xlim=[], ylim=[], zlim=[]): plots all elements of the aircraft as wireframes for input geometry debugging. Sets aircraft.plotlim as plot limits if none
 is provided'''

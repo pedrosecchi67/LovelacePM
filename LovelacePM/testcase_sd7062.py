@@ -16,7 +16,7 @@ from xfoil_visc import *
 from aerodynamic_output import *
 
 a=10.0
-q=0.0
+q=0.4
 Uinf=0.05
 b=1.2
 taper=1.0
