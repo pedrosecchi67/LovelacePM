@@ -176,7 +176,7 @@ help(smooth_angle_defsect_function)
 
 LovelacePM comes with an automation of Mark Drela's viscous-inviscid Xfoil panel method code to ease strip theory viscous corrections and thus make the package complete in itself in its capability of assisting aircraft design.
 
-To get instructions on how to use this automation for viscous corrected, check out:
+To get instructions on how to use this automation for viscous corrections, check out:
 
 ```
 from LovelacePM import *
