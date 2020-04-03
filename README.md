@@ -231,12 +231,18 @@ from LovelacePM import *
 
 #test case for AR 20 NACA 0012 wing at alpha=10 deg
 from LovelacePM.testcase_n0012_AR20 import *
+
+#test case for sphere
+from LovelacePM.testcase_sphere import *
+
+#test case for cilynder
+from LovelacePM.testcase_cilynder import *
 ```
 
 And compare with references in:
 
-1. For Euler flow over a sphere: tangential velocity $$v=\frac{3}{2}cos(\theta)$$, in polar coordinates;
-2. For Euler flow over a cilynder: tangential velocity $$v=2cos(\theta)$$, in polar coordinates;
+1. For Euler flow over a sphere with stream flowing from pole to pole equal to 3/2 times its azimuthal polar coordinate;
+2. For Euler flow over a cilynder: tangential velocity equal to 2 times the sine of its polar coordinate;
 3. For Euler flow over an $$AR=20$$ NACA-0012 wing: a pressure distribution as in Maskew, B.: "Prediction of Subsonic Aerodynamic Characteristics: A Case for Low Order Panel Methods". Journal of Aircraft, Feb. 1982, pp 157-153.
 
 ### Code conventions
