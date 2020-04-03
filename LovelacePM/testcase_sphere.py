@@ -45,6 +45,7 @@ sld.gennvv()
 print('Solid generation and pre-processing: '+str(tm.time()-t))
 t=tm.time()
 sld.genaicm()
+sld.gen_selfinf_mat()
 
 #checking aicm with srivastava's paper
 '''print(sld.aicm3_line)
@@ -83,30 +84,6 @@ sld.plotgeometry()
 plt.scatter([p.colpoint[0] for p in sld.panels], \
     [lg.norm(sld.delphi[i, :]+sld.vbar[i, :])/Uinf \
     for i in range(len(sld.panels))])
+plt.xlabel('$x$')
+plt.ylabel('$v$')
 plt.show()
-plt.scatter([p.colpoint[0] for p in sld.panels], \
-    [sld.solution[i] \
-    for i in range(len(sld.panels))])
-plt.show()
-
-xposit=np.array([p.colpoint[0] for p in sld.panels])
-vloc=np.array([lg.norm(sld.delphi[i, :]+sld.vbar[i, :])/Uinf for i in range(sld.npanels)])
-videal=np.sqrt(1.0-xposit**2)*1.5
-relerror=(videal-vloc)/videal
-validpos=np.logical_and(xposit<0.5, xposit>-0.5)
-relerror=relerror[validpos]
-xposit=xposit[validpos]
-plt.scatter(xposit, relerror)
-plt.show()
-
-'''n=0
-for p in sld.panels:
-    n+=1
-    print(n)
-    print('lines: '+str(p.lines))
-    print(sld.lines[np.array(p.lines), :, :])
-    print('nvector: '+str(p.nvector))
-    print('==========')
-    for l in p.lines:
-        print('line: '+str(sld.lines[l, :, 1]-sld.lines[l, :, 0]))
-        print(p.nvector@(sld.lines[l, :, 1]-sld.lines[l, :, 0]))'''

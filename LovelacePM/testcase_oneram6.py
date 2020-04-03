@@ -25,3 +25,5 @@ acft.addwake()
 acft.eulersolve()
 acft.forces_report()
 plot_Cls(sld, wings=[wng])
+
+os.chdir(ordir)

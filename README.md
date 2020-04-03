@@ -1,11 +1,14 @@
 # LovelacePM
-## Open source, Python-interpretable 3D vortex panel method code for optimized full aircraft configuration analysis
 
-This program is meant to provide optimized access to three-dimentional, viscous-corrected potential flow calculations in the easy-to-access fashion preferred for optimization purposes in academia.
+LovelacePM is an open source, Python-interpretable 3D vortex panel method code for optimized full aircraft configuration analysis.
 
-### Quick start
+It provides optimized access to three-dimentional, viscous-corrected potential flow calculations in the easy-to-access fashion preferred for optimization purposes in academia.
 
-# Defining a wing
+Named after Ada Lovelace and her fascination for flying machines!
+
+## Quick start
+
+### Defining a wing
 
 To install LovelacePM, use:
 
@@ -72,7 +75,7 @@ The code above follows the steps:
 * Calculate forces and stability derivatives;
 * Plot results, if desired.
 
-# Adding a non-lifting body
+### Adding a non-lifting body
 
 You can add a "standard body" (with ellipsoidal nose and conical tailcone) with code as in the following example:
 
@@ -102,7 +105,7 @@ Notice the arguments "leftqueue", "rightqueue", etc. in the "fuselage.patchcompo
 
 Arguments "thdisc_downleft", "thdisc_upright", etc. identify the angular discretization (in number of panels) specified for the body between queues "lowqueue" and "leftqueue", "upqueue" and "rightqueue", etc.
 
-# Customizing a body\'s geometry
+### Customizing a body\'s geometry
 
 You can also define a body instantiating "body" class and provide it with sections instantiated x-position by x-position, as in:
 
@@ -169,14 +172,42 @@ help(circdefsect)
 help(squaredefsect)
 help(smooth_angle_defsect_function)
 ```
+### Adding viscous corrections
 
-### Introduction
+LovelacePM comes with an automation of Mark Drela's viscous-inviscid Xfoil panel method code to ease strip theory viscous corrections and thus make the package complete in itself in its capability of assisting aircraft design.
 
-This README refers to capabilities and usage conditions referrent to version 0.0.7. Version 0.0.7 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
+To get instructions on how to use this automation for viscous corrected, check out:
+
+```
+from LovelacePM import *
+from LovelacePM.documentation import *
+
+help(xfoil_visc)
+help(polar_correction)
+```
+
+Or begin by following this example:
+
+```
+#generating xfoil corrected polars
+n4412_polar=polar_correction(name='n4412')
+#notice that n4412.dat Selig format airfoil file must be included in your script's directory
+
+#adding them to a wing section
+sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
+```
+
+Notice that, for the automation to work, **Xfoil must be located within the user's PATH environment variable.**
+
+## Contributing to LovelacePM
+
+You can contribute to LovelacePM by assisting us in meeting the system requirements and code conventions listed in the sections below.
+
+### Introduction to the project
+
+This README refers to capabilities and usage conditions referrent to version 0.0.8. Version 0.0.8 is an MVP and is therefore not bug free, and has not yet met all system requirements listed below.
 
 The project is subject to GNU GPL v3.0.
-
-Named after Ada Lovelace and her fascination for flying machines.
 
 The system requirements defined for the final product are labelled below, along with their objective, numbered as:
 (1) - performance optimization in highly iterative optimization problems;
@@ -191,7 +222,22 @@ The system requirements defined for the final product are labelled below, along 
 
 ### Test cases
 
-This product will be tested with all subsonic test cases displayed in the PAN AIR Case Manual v1.0 in its transition from MVP/alpha version (v0.X.Y) to beta version (v1.X.Y). Results will be available in annex pdf document and LaTeX source as the program is completed and tests are performed.
+This code has been tested according to the test cases reported in Ashok Srivastava's paper "Quadrilateral Vortex Panel Code Numerical Testing" (National Aerospace Laboratory Project Document CF 9123).
+
+They consist in the scrips the user can summon with:
+
+```
+from LovelacePM import *
+
+#test case for AR 20 NACA 0012 wing at alpha=10 deg
+from LovelacePM.testcase_n0012_AR20 import *
+```
+
+And compare with references in:
+
+1. For Euler flow over a sphere: tangential velocity $$v=\frac{3}{2}cos(\theta)$$, in polar coordinates;
+2. For Euler flow over a cilynder: tangential velocity $$v=2cos(\theta)$$, in polar coordinates;
+3. For Euler flow over an $$AR=20$$ NACA-0012 wing: a pressure distribution as in Maskew, B.: "Prediction of Subsonic Aerodynamic Characteristics: A Case for Low Order Panel Methods". Journal of Aircraft, Feb. 1982, pp 157-153.
 
 ### Code conventions
 

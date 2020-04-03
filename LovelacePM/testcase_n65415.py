@@ -14,30 +14,30 @@ from body import *
 from aircraft import *
 from aerodynamic_output import *
 
-a=radians(-2.0)
+a=-2.0
 Uinf=0.05
 b=5.0
 taper=0.3
 croot=1.0
 quarter_sweep=radians(30)
-twist=radians(-3.0)
+twist=-3.0
 incidence=0.0
 
 sld=Solid()
 
-sect1=wing_section(afl='n65415', CA_position=np.array([b*tan(quarter_sweep)/2, -b/2, 0.0]), c=croot*taper, xdisc=30, incidence=incidence+twist)#, xstrategy=lambda x: x)
+sect1=wing_section(afl='n65415', CA_position=np.array([b*tan(quarter_sweep)/2, -b/2, 0.0]), c=croot*taper, xdisc=30, incidence=incidence+twist, closed=True)#, xstrategy=lambda x: x)
 sect2=wing_section(afl='n65415', CA_position=np.array([0.0, 0.0, 0.0]), c=croot, xdisc=30, incidence=incidence)#, xstrategy=lambda x: x)
-sect3=wing_section(afl='n65415', CA_position=np.array([b*tan(quarter_sweep)/2, b/2, 0.0]), c=croot*taper, xdisc=30, incidence=incidence+twist)#, xstrategy=lambda x: x)
+sect3=wing_section(afl='n65415', CA_position=np.array([b*tan(quarter_sweep)/2, b/2, 0.0]), c=croot*taper, xdisc=30, incidence=incidence+twist, closed=True)#, xstrategy=lambda x: x)
 
 wng1=wing_quadrant(sld, sect1=sect1, sect2=sect2)
 wng2=wing_quadrant(sld, sect1=sect2, sect2=sect3)
 wng=wing(sld, wingquads=[wng1, wng2])
-wng.patchcompose(ydisc=40, ystrategy=lambda x: x)#(np.sin(pi*x-pi/2)+1)/2)
-wng.close_tip(sectside=1)
-wng.close_tip(sectside=2)
+
 acft=aircraft(sld, elems=[wng], Sref=b*croot*(1+taper)/2)
-acft.edit_parameters(par='a', val=a)
-acft.edit_parameters(par='Uinf', val=Uinf)
+acft.edit_parameters({'a':a, 'Uinf':Uinf})
+
+wng.patchcompose(ydisc=40, ystrategy=lambda x: x)#(np.sin(pi*x-pi/2)+1)/2)
+
 acft.addwake()
 
 '''sld.plotnormals(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6], factor=0.1)
