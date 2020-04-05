@@ -28,6 +28,8 @@ if statusdict['updateme']:
     if type(retval)==tuple:
         code=retval[0]
         tdy=retval[1]
+        if not code:
+            print('LovelacePM has autoupdated. If you wish to deactivate the autoupdate feature, import LovelacePM in another python instance use LovelacePM.updatecancel()')
     elif type(retval)==bool:
         code=retval
     else:
@@ -37,12 +39,11 @@ if statusdict['updateme']:
         lupfile=open('updatestat.lup', 'wb')
         pickle.dump(statusdict, lupfile)
         lupfile.close()
-        print('LovelacePM has autoupdated. If you wish to deactivate the autoupdate feature, use LovelacePM.updatecancel()')
     else:
         print('WARNING: error in autoupdate. Check internet connection if you wish to update LovelacePM. Moving on')
 else:
     retval=True
-    print('WARNING: LovelacePM autoupdate is deactivated. if you wish to activate autoupdate, use LovelacePM.updateset()')
+    print('WARNING: LovelacePM autoupdate is deactivated. if you wish to activate autoupdate, import LovelacePM in another python instance use LovelacePM.updateset()')
 def updateset():
     pdir=os.getcwd()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
