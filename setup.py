@@ -12,7 +12,7 @@ extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f9
 
 setup(
     name="LovelacePM",
-    version="0.1.0",
+    version="0.1.1",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
@@ -27,6 +27,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'scipy', 'matplotlib'],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'LoveUpdate'],
     python_requires='>=3.6',
 )
