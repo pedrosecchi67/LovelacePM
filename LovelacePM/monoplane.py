@@ -107,5 +107,6 @@ acft.plotgeometry()#(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+
 #sld.plotnormals(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5, 0.5], factor=0.05)
 acft.eulersolve()
 acft.forces_report()
+acft.stabreport()
 
 os.chdir(ordir)

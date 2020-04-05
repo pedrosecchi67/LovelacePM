@@ -10,6 +10,7 @@ import scipy.sparse as sps
 import scipy.interpolate as sinterp
 import time as tm
 
+import fdyn
 import toolkit
 from utils import *
 
@@ -23,6 +24,9 @@ class aircraft: #class to ease certain case studies for full aircraft
         print('Freestream parameters:')
         print('%10s %10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf', 'M'))
         print('%10f %10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf, self.M))
+        print('Environment parameters:')
+        print('%10s %10s %10s' % ('rho', 'mu', 'g'))
+        print('%10f %10f %10f' % (self.rho, self.mu, self.g))
         print('Geometry parameters:')
         print('%10s %10s %10s %10s' % ('Sref', 'cref', 'bref', 'AR'))
         print('%10f %10f %10f %10f' % (self.Sref, self.cref, self.bref, self.AR))
@@ -35,11 +39,44 @@ class aircraft: #class to ease certain case studies for full aircraft
                 controlvals_str+='%10f' % degrees(self.controlset[cname].state)
             print(controlnames_str)
             print(controlvals_str)
-        '''if self.massavailable:
+        if not self.massavailable:
             print('Mass parameters not yet present')
         else:
-            print('%10s %10s %10s %10s %10s %10s %10s %10s' % ('m', 'Ixx', 'Iyy', 'Izz', 'Ixy', 'Ixz', 'Ixz', 'Iyz'))
-            print('%10f %10f %10f %10f %10f %10f %10f %10f' % (self.m, self.Ixx, self.Iyy, self.Izz, self.Ixy, self.Ixz, self.Iyz))'''
+            print('Mass parameters:')
+            print('CG=(%10f %10f %10f)' % (self.CG[0], self.CG[1], self.CG[2]))
+            print('%10s %10s %10s %10s %10s %10s %10s' % ('m', 'Ixx', 'Iyy', 'Izz', 'Ixy', 'Ixz', 'Iyz'))
+            print('%10f %10f %10f %10f %10f %10f %10f' % (self.m, self.Inertia[0, 0], self.Inertia[1, 1], self.Inertia[2, 2], \
+                self.Inertia[0, 1], self.Inertia[0, 2], self.Inertia[1, 2]))
+    def addmass(self, m=0.0, Ixx=0.0, Iyy=0.0, Izz=0.0, Ixy=0.0, Ixz=0.0, Iyz=0.0, echo=True): #sets mass variables for the aircraft
+        self.m=m
+        self.Inertia=np.array([[Ixx, Ixy, Ixz], [Ixy, Iyy, Iyz], [Ixz, Iyz, Izz]])
+        self.massavailable=True
+        if echo:
+            self.parameter_report()
+    def dynamic_simulation(self, nstep=2e5, dt=1e-4, start_point=np.array([0.0, 0.0, 0.0]), \
+        perturbations={}, trim=True, visc=True, onboard=np.zeros(3)):
+        if not self.massavailable:
+            print('WARNING: dynamic analysis requested without any mass data. Returning empty arrays')
+            return np.array([]), np.array([]), np.array([]), np.array([])
+        perturbations=np.array([start_point[0], start_point[1], start_point[2], \
+            perturbations['phi'], perturbations['theta'], perturbations['psi'], \
+                perturbations['u'], perturbations['v'], perturbations['w'], \
+                    perturbations['p'], perturbations['q'], perturbations['q']])
+        coeffs=np.zeros(6)
+        derivs=np.zeros((5, 6))
+        if not trim:
+            coeffs=np.array([-self.CX, self.CY, -self.CZ, -self.Cl, self.Cm, -self.Cn]) #note that we're using stability coordinates here
+            if visc:
+                coeffs+=np.array([-self.dCX, self.dCY, -self.dCZ, -self.dCl, self.dCm, -self.dCn])
+        i=0
+        for par in self.stabderivative_dict:
+            derivs[i, :]=np.array([-self.stabderivative_dict[par]['dCX'], self.stabderivative_dict[par]['dCY'], -self.stabderivative_dict[par]['dCZ'], \
+                -self.stabderivative_dict[par]['dCl'], self.stabderivative_dict[par]['dCm'], -self.stabderivative_dict[par]['dCn']])
+            i+=1
+        external_history, alpha_history, beta_history, euler_history=fdyn.tstep_solve(nstep, dt, self.rho, self.Uinf, self.g, \
+            self.Sref, self.cref, self.bref, perturbations, onboard, self.Inertia, self.m, \
+                coeffs, derivs)
+        return external_history, alpha_history, beta_history, euler_history
     def balance(self, SM=0.1, echo=True): #balancing the aircraft for given static margin
         if not self.stabavailable:
             print('WARNING: stability derivatives not available for balancing. Performing in place')
@@ -115,6 +152,9 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.r=0.0
         self.Uinf=1.0
         self.M=0.0
+        self.rho=1.225
+        self.mu=1.72e-5
+        self.g=9.81
 
         self.CG=CG
         
@@ -128,15 +168,15 @@ class aircraft: #class to ease certain case studies for full aircraft
                             self.controlset[cname]=control_DOF()
                             wngqd.controls[cname].DOF=self.controlset[cname]
 
-        if echo:
-            self.parameter_report()
-
         self.sld=sld
         self.forcesavailable=False
         self.stabavailable=False
         self.massavailable=False
         self.haseqflatplate=False
         self.hascorrections=any([wng.hascorrection() for wng in self.wings])
+
+        if echo:
+            self.parameter_report()
 
         #defining plotting limits
         xkeypts=[]
@@ -221,7 +261,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.stabderivative_dict={}
         orforces=np.array([self.CX, self.CY, self.CZ])
         for p in pars:
-            dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p*2*self.bref*self.Uinf, q=self.q*self.cref*2*self.Uinf, r=self.r*self.bref*2*self.Uinf, par=p)
+            dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, r=self.r*2*self.Uinf/self.bref, par=p)
             forces=[-dCps[i]*self.sld.panels[i].S*self.sld.panels[i].nvector for i in range(self.sld.npanels)]
             moments=[np.cross(self.sld.panels[i].colpoint, forces[i]) for i in range(self.sld.npanels)]
             dCX=sum([forces[i][0] for i in range(self.sld.npanels)])/self.Sref
@@ -248,7 +288,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         print('%5s | %10s %10s %10s %10s %10s %10s %10s %10s' % ('par', 'dCX', 'dCY', 'dCZ', 'dCL', 'dCD', 'dCl', 'dCm', 'dCn'))
         for p in self.stabderivative_dict:
             print('%5s | %10f %10f %10f %10f %10f %10f %10f %10f' % (p, self.stabderivative_dict[p]['dCX'], self.stabderivative_dict[p]['dCY'], \
-                self.stabderivative_dict[p]['dCZ'], self.stabderivative_dict[p]['dCL'], self.stabderivative_dict[p]['dCD'], self.stabderivative_dict[p]['dCl'], \
+                self.stabderivative_dict[p]['dCZ'], self.stabderivative_dict[p]['dCL'], self.stabderivative_dict[p]['dCD'], -self.stabderivative_dict[p]['dCl'], \
                     self.stabderivative_dict[p]['dCm'], self.stabderivative_dict[p]['dCn']))
     def edit_parameters(self, pardict, echo=True):
         for par in pardict:
@@ -267,6 +307,12 @@ class aircraft: #class to ease certain case studies for full aircraft
                 self.Uinf=val
             elif par=='M':
                 self.M=val
+            elif par=='rho':
+                self.rho=val
+            elif par=='mu':
+                self.mu=val
+            elif par=='g':
+                self.g=val
             else:
                 self.controlset[par].state=radians(val)
         #reset result readiness
@@ -280,8 +326,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         for bdy in self.bodies:
             bdy.apply_eqflatplate(rho=rho, mu=mu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0, tolerance=1e-5, wakeiter=0):
-        self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*self.bref*2*self.Uinf, q=self.q*2*self.cref*self.Uinf, \
-            r=self.r*self.bref*2*self.Uinf, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
+        self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, \
+            r=self.r*2*self.Uinf/self.bref, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
     def forces_report(self):
         print('========Total Forces Report========')
         if self.hascorrections:
@@ -294,12 +340,12 @@ class aircraft: #class to ease certain case studies for full aircraft
         if not self.forcesavailable:
             self.calcforces(echo=False)
         print('%10s %10s %10s %10s %10s %10s | %10s %10s' % ('CX', 'CY', 'CZ', 'Cl', 'Cm', 'Cn', 'CL', 'CD'))
-        print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX, self.CY, self.CZ, self.Cl, self.Cm, self.Cn, self.CL, self.CD))
+        print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX, self.CY, self.CZ, -self.Cl, self.Cm, -self.Cn, self.CL, self.CD))
         if self.hascorrections:
             print('After viscous external polar corrections: ')
             print('%10s %10s %10s %10s %10s %10s | %10s %10s' % ('CX', 'CY', 'CZ', 'Cl', 'Cm', 'Cn', 'CL', 'CD'))
             print('%10f %10f %10f %10f %10f %10f | %10f %10f' % (self.CX+self.dCX, self.CY+self.dCY, self.CZ+self.dCZ, \
-                self.Cl+self.dCl, self.Cm+self.dCm, self.Cn+self.dCn, self.CL+self.dCL, self.CD+self.dCD))
+                -(self.Cl+self.dCl), self.Cm+self.dCm, -(self.Cn+self.dCn), self.CL+self.dCL, self.CD+self.dCD))
         print('===================================')
     def plot_input(self, xlim=[], ylim=[], zlim=[]):
         fig=plt.figure()

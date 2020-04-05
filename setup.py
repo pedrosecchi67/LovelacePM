@@ -7,7 +7,8 @@ with open("README.md", "r") as fh:
 
 
 #libraries=[('toolkit', dict(sources=['toolkit.f90']))]
-extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f90'], language='f90')]#, libraries='toolkit')]
+extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f90'], language='f90'), \
+    Extension(name='LovelacePM.fdyn', sources=['LovelacePM/fdyn.f90'], language='f90')]
 
 setup(
     name="LovelacePM",

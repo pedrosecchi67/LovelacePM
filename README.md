@@ -253,7 +253,7 @@ And compare with references in:
 
 * Python's suggested naming conventions are adopted. Initials may also be referred to in capital letters;
 * All functions related to Euler solutions should be either defined in paneller.py or called from it, so as to ease access. utils.py may also contain independent geometry-related functions;
-* All FORTRAN backend subroutines should be defined in toolkit.so, obeying the FORTRAN 90 standard.
+* All FORTRAN backend subroutines should be defined in toolkit.f90 (for aerodynamics related functions) or fdyn.f90 (for flight dynamics related functions), obeying the FORTRAN 90 standard.
 
 ### Dependencies
 
