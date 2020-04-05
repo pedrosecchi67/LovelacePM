@@ -24,9 +24,8 @@ lupfile=open('updatestat.lup', 'rb')
 statusdict=pickle.load(lupfile)
 lupfile.close()
 if statusdict['updateme']:
-    retval=LoveUpdate.update('LovelacePM', tdy)
+    retval=LoveUpdate.update('LovelacePM', statusdict['lastupdate'])
     if type(retval)==tuple:
-        print('tup')
         code=retval[0]
         tdy=retval[1]
     elif type(retval)==bool:
