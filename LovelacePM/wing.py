@@ -3,6 +3,7 @@ import numpy.linalg as lg
 import scipy.linalg as slg
 import scipy.linalg.lapack as slapack
 import scipy.sparse.linalg as splg
+import scipy.interpolate as sinterp
 from math import *
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
@@ -366,6 +367,55 @@ class wing_quadrant: #wing region between two airfoil sections
             for i in range(len(intra_paninds)):
                 if self.intraleft_lines[i]!=-2:
                     self.sld.panels[intra_paninds[i]].nocirc_enforce(self.intraleft_lines[i])
+    def deriv_incmat(self): #returns lambda function to calculate the derivative of a rotation matrix around the wing quadrant's axis. Used for design variable gradients
+        v=np.array([0.0, self.sect2.CA_position[1]-self.sect1.CA_position[1], self.sect2.CA_position[2]-self.sect1.CA_position[2]])
+        v/=lg.norm(v)
+        u=np.array([1.0, 0.0, 0.0])
+        u-=(u@v)*v
+        u/=lg.norm(u)
+        w=np.cross(u, v)
+        Mtosys=np.vstack((u, v, w))
+        return Mtosys.T@(np.array([[0.0, 0.0, 1.0], \
+            [0.0, 0.0, 0.0], \
+                [-1.0, 0.0, 0.0]]))@Mtosys
+    def design_derivs(self, sectside=1): #calculate derivatives for posisions and normal vectors by the incidence of each section (identified in sectside kwarg)
+        panrs=np.zeros((len(self.paninds), 3))
+        panns=np.zeros((len(self.paninds), 3))
+        axpositx=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([self.sect1.CA_position[0], self.sect2.CA_position[0]]))
+        axpositz=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([self.sect1.CA_position[2], self.sect2.CA_position[2]]))
+        #define rules for deflection
+        defrule=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([1.0, 0.0]))
+        for i in range(len(self.paninds)):
+            panrs[i, :]=self.sld.panels[self.paninds[i]].colpoint
+            panns[i, :]=self.sld.panels[self.paninds[i]].nvector
+        #define radius in respect to axis
+        defs1=defrule(panrs[:, 1])
+        defs2=1.0-defs1
+        panrs[:, 0]-=axpositx(panrs[:, 1])
+        panrs[:, 2]-=axpositz(panrs[:, 1])
+        #calculating derivatives in respect to local rotation
+        dRds=self.deriv_incmat()
+        panrs=(dRds@panrs.T).T
+        panns=(dRds@panns.T).T
+        panrs1=np.zeros(np.shape(panrs))
+        panrs2=np.zeros(np.shape(panrs))
+        panns1=np.zeros(np.shape(panns))
+        panns2=np.zeros(np.shape(panns))
+        #multiplying by deflection for each y position
+        panrs1[:, 0]=defs1*panrs[:, 0]
+        panrs1[:, 1]=defs1*panrs[:, 1]
+        panrs1[:, 2]=defs1*panrs[:, 2]
+        panrs2[:, 0]=defs2*panrs[:, 0]
+        panrs2[:, 1]=defs2*panrs[:, 1]
+        panrs2[:, 2]=defs2*panrs[:, 2]
+        #same for normal vectors
+        panns1[:, 0]=defs1*panns[:, 0]
+        panns1[:, 1]=defs1*panns[:, 1]
+        panns1[:, 2]=defs1*panns[:, 2]
+        panns2[:, 0]=defs2*panns[:, 0]
+        panns2[:, 1]=defs2*panns[:, 1]
+        panns2[:, 2]=defs2*panns[:, 2]
+        return panrs1, panns1, panrs2, panns2 #returning dr/dksi, dn/dksi for each wing section
     def calc_coefs(self, alpha=0.0, axis=1): #calculate local sectional coefficients
         if axis==1: #calculate unitary, streamwise direction vectors
             u=np.array([cos(alpha), 0.0, sin(alpha)])
