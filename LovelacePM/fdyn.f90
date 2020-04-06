@@ -1,6 +1,6 @@
 !solve aircraft positions as they vary in time
 subroutine tstep_solve(nstep, dt, rho, U0, g, Sref, cref, bref, perturbation, onboard, inertia, m, &
-coeffs, derivs, external_history, alpha_history, beta_history, euler_history)
+coeffs, derivs, external_history, alpha_history, beta_history, euler_history, time_history)
     !for pertutbation, here we use the notation employed by Drela in Flight Viechle Aerodynamics
     !equations are also directly obtained from there
     integer, intent(IN) :: nstep
@@ -9,12 +9,14 @@ coeffs, derivs, external_history, alpha_history, beta_history, euler_history)
     !notation for coefs: (CX, CY, CZ, Cl, Cm, Cn)
     !notation for derivs: (CX, CY, CZ, Cl, Cm, Cn), first row: a derivatives; second, b derivatives; third, p; 4, q; 5, r
     real(8), intent(OUT) :: external_history(1:nstep, 1:3), alpha_history(1:nstep), beta_history(1:nstep), &
-    euler_history(1:nstep, 1:3)
+    euler_history(1:nstep, 1:3), time_history(1:nstep)
 
     integer :: i, j
 
     real(8) :: Uinf, xe, ye, ze, phi, theta, psi, u, v, w, p, q, r, &
-    forces(1:3), moments(1:3), invI(1:3, 1:3), det_l, a, b, mtemp(1:3)
+    forces(1:3), moments(1:3), invI(1:3, 1:3), det_l, a, b, mtemp(1:3), t
+
+    t=0.0
 
     xe=perturbation(1)
     ye=perturbation(2)
@@ -77,6 +79,8 @@ coeffs, derivs, external_history, alpha_history, beta_history, euler_history)
         theta=theta+dt*(q*cos(phi)-r*sin(phi))
         psi=psi+dt*(q*sin(phi)/cos(theta)+r*cos(phi)/cos(theta))
 
+        t=t+dt
+
         alpha_history(i)=a
         beta_history(i)=b
         euler_history(i, 1)=phi
@@ -85,6 +89,7 @@ coeffs, derivs, external_history, alpha_history, beta_history, euler_history)
         external_history(i, 1)=xe
         external_history(i, 2)=ye
         external_history(i, 3)=ze
+        time_history(i)=t
     end do
 end subroutine tstep_solve
 

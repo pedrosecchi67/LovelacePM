@@ -2,9 +2,12 @@ import numpy as np
 import os
 from math import *
 from LovelacePM import *
+import matplotlib.pyplot as plt
 
 ordir=os.getcwd()
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+Uinf=200/3.6 #200kph
 
 fuselage_height=2.2
 cabin_screen_height=0.8
@@ -102,11 +105,27 @@ fuselage.patchcompose(xdisc=100, thdisc_upright=5, thdisc_downright=5, thdisc_up
 
 closex=cabin_length-cabin_aft_projection+tailcone_length-0.75*emph_c-emph_offset
 
+#inertial data from https://www.researchgate.net/publication/317371325_Design_Methodology_and_Flight_Test_Protocols_for_a_Dynamically-Scaled_General_Aviation_Aircraft/figures?lo=1&utm_source=google&utm_medium=organic
+
+#conversion to metric units:
+m=2260*0.453592
+Ixx=14.59390*948*0.3048**2
+Iyy=14.59390*1.346*0.3048**2
+Izz=14.59390*1.967*0.3048**2
+acft.edit_parameters({'Uinf':Uinf})
+
 acft.addwake()
 acft.plotgeometry()#(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+tailcone_height, 0.5+tailcone_height])
 #sld.plotnormals(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5, 0.5], factor=0.05)
 acft.eulersolve()
 acft.forces_report()
 acft.stabreport()
+acft.balance(SM=0.1)
+acft.addmass(m=m, Ixx=Ixx, Iyy=Iyy, Izz=Izz)
+external_history, alpha_history, beta_history, euler_history, time_history=acft.dynamic_simulation(nstep=2.5e3, dt=1e-4, perturbations={'w':10.0})
+plt.plot(time_history, alpha_history)
+plt.xlabel('t [s]')
+plt.ylabel('Var. in angle of attack [rad]')
+plt.show()
 
 os.chdir(ordir)

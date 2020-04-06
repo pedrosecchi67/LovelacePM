@@ -58,6 +58,10 @@ class aircraft: #class to ease certain case studies for full aircraft
         if not self.massavailable:
             print('WARNING: dynamic analysis requested without any mass data. Returning empty arrays')
             return np.array([]), np.array([]), np.array([]), np.array([])
+        keys=['phi', 'theta', 'psi', 'u', 'v', 'w', 'p', 'q', 'r']
+        for par in keys:
+            if not par in perturbations:
+                perturbations[par]=0.0
         perturbations=np.array([start_point[0], start_point[1], start_point[2], \
             perturbations['phi'], perturbations['theta'], perturbations['psi'], \
                 perturbations['u'], perturbations['v'], perturbations['w'], \
@@ -69,14 +73,14 @@ class aircraft: #class to ease certain case studies for full aircraft
             if visc:
                 coeffs+=np.array([-self.dCX, self.dCY, -self.dCZ, -self.dCl, self.dCm, -self.dCn])
         i=0
-        for par in self.stabderivative_dict:
+        for par in ['a', 'b', 'p', 'q', 'r']:
             derivs[i, :]=np.array([-self.stabderivative_dict[par]['dCX'], self.stabderivative_dict[par]['dCY'], -self.stabderivative_dict[par]['dCZ'], \
                 -self.stabderivative_dict[par]['dCl'], self.stabderivative_dict[par]['dCm'], -self.stabderivative_dict[par]['dCn']])
             i+=1
-        external_history, alpha_history, beta_history, euler_history=fdyn.tstep_solve(nstep, dt, self.rho, self.Uinf, self.g, \
+        external_history, alpha_history, beta_history, euler_history, time_history=fdyn.tstep_solve(nstep, dt, self.rho, self.Uinf, self.g, \
             self.Sref, self.cref, self.bref, perturbations, onboard, self.Inertia, self.m, \
                 coeffs, derivs)
-        return external_history, alpha_history, beta_history, euler_history
+        return external_history, alpha_history, beta_history, euler_history, time_history
     def balance(self, SM=0.1, echo=True): #balancing the aircraft for given static margin
         if not self.stabavailable:
             print('WARNING: stability derivatives not available for balancing. Performing in place')
