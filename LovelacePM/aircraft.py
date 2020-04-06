@@ -61,7 +61,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         perturbations=np.array([start_point[0], start_point[1], start_point[2], \
             perturbations['phi'], perturbations['theta'], perturbations['psi'], \
                 perturbations['u'], perturbations['v'], perturbations['w'], \
-                    perturbations['p'], perturbations['q'], perturbations['q']])
+                    perturbations['p'], perturbations['q'], perturbations['r']])
         coeffs=np.zeros(6)
         derivs=np.zeros((5, 6))
         if not trim:
