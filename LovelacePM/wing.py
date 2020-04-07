@@ -381,41 +381,37 @@ class wing_quadrant: #wing region between two airfoil sections
     def design_derivs(self, sectside=1): #calculate derivatives for posisions and normal vectors by the incidence of each section (identified in sectside kwarg)
         panrs=np.zeros((len(self.paninds), 3))
         panns=np.zeros((len(self.paninds), 3))
-        axpositx=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([self.sect1.CA_position[0], self.sect2.CA_position[0]]))
-        axpositz=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([self.sect1.CA_position[2], self.sect2.CA_position[2]]))
-        #define rules for deflection
-        defrule=sinterp.interp1d(np.array([self.sect1.CA_position[1], self.sect2.CA_position[1]]), np.array([1.0, 0.0]))
+        dists=np.zeros(len(self.paninds))
+        wingvec=self.sect2.CA_position-self.sect1.CA_position
+        wingvec[0]=0.0
         for i in range(len(self.paninds)):
             panrs[i, :]=self.sld.panels[self.paninds[i]].colpoint
             panns[i, :]=self.sld.panels[self.paninds[i]].nvector
-        #define radius in respect to axis
-        defs1=defrule(panrs[:, 1])
-        defs2=1.0-defs1
-        panrs[:, 0]-=axpositx(panrs[:, 1])
-        panrs[:, 2]-=axpositz(panrs[:, 1])
+            #calculating distance parallel to the wing
+            dists[i]=(panrs[i, :]-self.sect1.CA_position)@wingvec
+        dist=wingvec@(self.sect2.CA_position-self.sect1.CA_position)
+        axpositx=lambda d: self.sect1.CA_position[0]+d*(self.sect2.CA_position[0]-self.sect1.CA_position[0])/dist
+        axposity=lambda d: self.sect1.CA_position[1]+d*(self.sect2.CA_position[1]-self.sect1.CA_position[1])/dist
+        axpositz=lambda d: self.sect1.CA_position[2]+d*(self.sect2.CA_position[2]-self.sect1.CA_position[2])/dist
+        if sectside==1:
+            defs=1.0-dists/dist
+        else:
+            defs=dists/dist
+        panrs[:, 0]-=axpositx(dists)
+        panrs[:, 1]-=axposity(dists)
+        panrs[:, 2]-=axpositz(dists)
         #calculating derivatives in respect to local rotation
         dRds=self.deriv_incmat()
         panrs=(dRds@panrs.T).T
         panns=(dRds@panns.T).T
-        panrs1=np.zeros(np.shape(panrs))
-        panrs2=np.zeros(np.shape(panrs))
-        panns1=np.zeros(np.shape(panns))
-        panns2=np.zeros(np.shape(panns))
         #multiplying by deflection for each y position
-        panrs1[:, 0]=defs1*panrs[:, 0]
-        panrs1[:, 1]=defs1*panrs[:, 1]
-        panrs1[:, 2]=defs1*panrs[:, 2]
-        panrs2[:, 0]=defs2*panrs[:, 0]
-        panrs2[:, 1]=defs2*panrs[:, 1]
-        panrs2[:, 2]=defs2*panrs[:, 2]
-        #same for normal vectors
-        panns1[:, 0]=defs1*panns[:, 0]
-        panns1[:, 1]=defs1*panns[:, 1]
-        panns1[:, 2]=defs1*panns[:, 2]
-        panns2[:, 0]=defs2*panns[:, 0]
-        panns2[:, 1]=defs2*panns[:, 1]
-        panns2[:, 2]=defs2*panns[:, 2]
-        return panrs1, panns1, panrs2, panns2 #returning dr/dksi, dn/dksi for each wing section
+        panrs[:, 0]=defs*panrs[:, 0]
+        panrs[:, 1]=defs*panrs[:, 1]
+        panrs[:, 2]=defs*panrs[:, 2]
+        panns[:, 0]=defs*panns[:, 0]
+        panns[:, 1]=defs*panns[:, 1]
+        panns[:, 2]=defs*panns[:, 2]
+        return panrs, panns #returning dr/dksi, dn/dksi
     def calc_coefs(self, alpha=0.0, axis=1): #calculate local sectional coefficients
         if axis==1: #calculate unitary, streamwise direction vectors
             u=np.array([cos(alpha), 0.0, sin(alpha)])
@@ -677,3 +673,21 @@ class wing:
             dCm+=dCm_quad
             dCn+=dCn_quad
         return dCX, dCY, dCZ, dCl, dCm, dCn
+    def calc_design_dFM(self, section=0, Uinf=1.0, rho=1.225, CG=np.zeros(3)): #section: index between 0 and len(self.wingquads) to indicate the section to derivate coefficients based on
+        #returns derivatives of forces and moments
+        drdinc=np.zeros((self.sld.npanels, 3))
+        dndinc=np.zeros((self.sld.npanels, 3))
+        if section!=0:
+            drdinc[np.array(self.wingquads[section-1].paninds), :], dndinc[np.array(self.wingquads[section-1].paninds), :]=self.wingquads[section-1].design_derivs(sectside=2)
+        if section!=len(self.wingquads):
+            drdinc[np.array(self.wingquads[section].paninds), :], dndinc[np.array(self.wingquads[section].paninds), :]=self.wingquads[section].design_derivs(sectside=1)
+        dnvvdinc=np.zeros(self.sld.npanels) #derivative of normal velocity component
+        for i in range(self.sld.npanels):
+            dnvvdinc[i]=self.sld.vbar[i, :]@dndinc[i, :]
+        dCps=self.sld.calc_derivative_dn(Uinf=Uinf, dndksi=dnvvdinc)
+        dFs=np.zeros((self.sld.npanels, 3))
+        dMs=np.zeros((self.sld.npanels, 3))
+        for i in range(self.sld.npanels):
+            dFs[i, :]=-rho*Uinf**2*(dCps[i]*self.sld.panels[i].nvector+self.sld.Cps[i]*dndinc[i, :])*self.sld.panels[i].S/2
+            dMs[i, :]=np.cross(drdinc[i, :], self.sld.forces[i])+np.cross(self.sld.panels[i].colpoint-CG, dFs[i, :])
+        return np.sum(dFs, axis=0), np.sum(dMs, axis=0)

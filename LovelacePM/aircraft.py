@@ -25,8 +25,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         print('%10s %10s %10s %10s %10s %10s %10s' % ('a', 'b', 'p', 'q', 'r', 'Uinf', 'M'))
         print('%10f %10f %10f %10f %10f %10f %10f' % (degrees(self.a), degrees(self.b), self.p, self.q, self.r, self.Uinf, self.M))
         print('Environment parameters:')
-        print('%10s %10s %10s' % ('rho', 'mu', 'g'))
-        print('%10f %10f %10f' % (self.rho, self.mu, self.g))
+        print('%10s %10s %10s %10s' % ('rho', 'mu', 'g', 'gamma'))
+        print('%10f %10f %10f %10f' % (self.rho, self.mu, self.g, self.gamma))
         print('Geometry parameters:')
         print('%10s %10s %10s %10s' % ('Sref', 'cref', 'bref', 'AR'))
         print('%10f %10f %10f %10f' % (self.Sref, self.cref, self.bref, self.AR))
@@ -159,6 +159,7 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.rho=1.225
         self.mu=1.72e-5
         self.g=9.81
+        self.gamma=1.4
 
         self.CG=CG
         
@@ -265,7 +266,8 @@ class aircraft: #class to ease certain case studies for full aircraft
         self.stabderivative_dict={}
         orforces=np.array([self.CX, self.CY, self.CZ])
         for p in pars:
-            dCps=self.sld.calc_derivative(self.Uinf, a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, r=self.r*2*self.Uinf/self.bref, par=p)
+            dvdksi=self.sld.gen_farfield_derivative(self.Uinf, a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, r=self.r*2*self.Uinf/self.bref, par=p)
+            dCps=self.sld.calc_derivative_dv(self.Uinf, dvdksi)
             forces=[-dCps[i]*self.sld.panels[i].S*self.sld.panels[i].nvector for i in range(self.sld.npanels)]
             moments=[np.cross(self.sld.panels[i].colpoint, forces[i]) for i in range(self.sld.npanels)]
             dCX=sum([forces[i][0] for i in range(self.sld.npanels)])/self.Sref
@@ -317,6 +319,8 @@ class aircraft: #class to ease certain case studies for full aircraft
                 self.mu=val
             elif par=='g':
                 self.g=val
+            elif par=='gamma':
+                self.gamma=val
             else:
                 self.controlset[par].state=radians(val)
         #reset result readiness
@@ -379,3 +383,40 @@ class aircraft: #class to ease certain case studies for full aircraft
         if len(zlim)==0:
             zlim=[-self.plotlim, self.plotlim]
         self.sld.plotgeometry(xlim=xlim, ylim=ylim, zlim=zlim, factor=factor, velfield=velfield)
+    def design_derivatives(self, wings=[], echo=True): #calculate derivatives in forces due to design parameters in a wing - its sectional incidences
+        if len(wings)==0:
+            wings=self.wings
+        wnglist=[]
+        u=np.array([cos(self.a)*cos(self.b), sin(self.b)*cos(self.a), sin(self.a)])
+        v=np.array([-sin(self.a)*cos(self.b), -sin(self.b)*sin(self.a), cos(self.a)])
+        wngcnt=1
+        for wng in wings:
+            sectcnt=1
+            wnglist+=[[]]
+            if echo:
+                print('=============================================')
+                print('Design derivatives for incidences in wing %d' % (wngcnt))
+            for sect in range(len(wng.wingquads)+1):
+                dFs, dMs=wng.calc_design_dFM(section=sect, Uinf=self.Uinf, rho=self.rho, CG=self.CG)
+                #transform to derivatives in respect to degrees
+                dFs*=np.pi/180.0
+                dMs*=np.pi/180.0
+                dFs/=self.Sref*self.rho*self.Uinf**2/2
+                dMs[0]/=self.Sref*self.bref*self.rho*self.Uinf**2/2
+                dMs[1]/=self.Sref*self.cref*self.rho*self.Uinf**2/2
+                dMs[2]/=self.Sref*self.bref*self.rho*self.Uinf**2/2
+                stwise=np.array([dFs@u, dFs@v])
+                derdict={'dCX':dFs[0], 'dCY':dFs[1], 'dCZ':dFs[2], 'dCD':stwise[0], 'dCL':stwise[1], 'dCl':-dMs[0], 'dCm':dMs[1], 'dCn':-dMs[2]} #stability derivatives
+                #transformed to derivative coordinate system
+                if echo:
+                    print('===========Section %d==========' % (sectcnt))
+                    print('%8s %8s %8s %8s %8s %8s %8s %8s' % ('dCX', 'dCY', 'dCZ', 'dCD', 'dCL', 'dCl', 'dCm', 'dCn'))
+                    print('%8f %8f %8f %8f %8f %8f %8f %8f' % (derdict['dCX'], derdict['dCY'], derdict['dCZ'], derdict['dCD'], derdict['dCL'], \
+                        derdict['dCl'], derdict['dCm'], derdict['dCn']))
+                wnglist[-1]+=[derdict]
+                sectcnt+=1
+            if echo:
+                print('=============================================')
+            wngcnt+=1
+        return wnglist
+            

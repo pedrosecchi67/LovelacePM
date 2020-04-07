@@ -541,14 +541,22 @@ class Solid:
         self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i]+self.panels[i].S*self.Cfs[i]*\
             (self.vbar[i, :]+self.delphi[i, :])/lg.norm(self.vbar[i, :]+self.delphi[i, :]) for i in range(self.npanels)]
         self.moments=[np.cross(self.panels[i].colpoint, self.forces[i]) for i in range(self.npanels)]
-    def calc_derivative(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par='a'): #calculate local Cp derivative by freestream factor
-        dvdksi=self.gen_farfield_derivative(Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, par=par)
+    def calc_derivative_dv(self, Uinf, dvdksi): #calculate local Cp derivative by freestream derivative
         dndksi=np.array([self.panels[i].nvector@dvdksi[i, :] for i in range(self.npanels)])
         dGammadksi=-self.iaicm@dndksi
         dGamma_linedksi=self.panline_matrix@dGammadksi
         dvdksi[:, 0]+=self.aicm3[0, :, :]@dGammadksi+self.selfinf_mat_x@dGamma_linedksi
         dvdksi[:, 1]+=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
         dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
+        dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
+        return dCps
+    def calc_derivative_dn(self, Uinf, dndksi): #calculate local Cp derivative by normal velocity derivative
+        dGammadksi=-self.iaicm@dndksi
+        dGamma_linedksi=self.panline_matrix@dGammadksi
+        dvdksi=np.zeros((len(dndksi), 3))
+        dvdksi[:, 0]=self.aicm3[0, :, :]@dGammadksi+self.selfinf_mat_x@dGamma_linedksi
+        dvdksi[:, 1]=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
+        dvdksi[:, 2]=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
         return dCps
     def add_wakevels(self, tolerance=1e-5): #calculate velocities at wake panel control points and add to local velocity variables
