@@ -70,7 +70,7 @@ The code above follows the steps:
 * Instantiating wing sections (with airfoil x-discretization, in number of panels, specified by kwarg "xdisc");
 * Gathering pairs of wing sections into wing quadrants (thus specifying an order);
 * Gathering wing quadrants into wings (from leftmost/highest quadrant to rightmost/lowest quadrant);
-* Gathering all wings and non-lifting bodies into a wing
+* Gathering all wings and non-lifting bodies into an aircraft;
 * Using "patchcompose" methods to generate panel networks;
 * Adding a wake;
 * Generating an euler solution;
