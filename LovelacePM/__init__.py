@@ -18,7 +18,7 @@ tdy=LoveUpdate.getdate()
 if not os.path.exists('updatestat.lup'):
     lupfile=open('updatestat.lup', 'wb')
     statusdict={'lastupdate':tdy, 'updateme':True}
-    _=LoveUpdate.update('LoveUpdate', statusdict['lastupdate'])
+    _=LoveUpdate.update('LoveUpdate', statusdict['lastupdate']-1)
     pickle.dump(statusdict, lupfile)
     lupfile.close()
 lupfile=open('updatestat.lup', 'rb')

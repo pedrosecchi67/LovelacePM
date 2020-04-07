@@ -534,14 +534,19 @@ class Solid:
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
         self.gen_selfinf()
-    def calcpress(self, Uinf=1.0):
-        for i in range(self.npanels):
-            self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
+    def calcpress(self, Uinf=1.0, gamma=1.4, M=0.0):
+        if M==0.0:
+            for i in range(self.npanels):
+                self.Cps[i]=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2
+        else:
+            for i in range(self.npanels):
+                incomp=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2 #incompressible value
+                self.Cps[i]=2*((1.0+(gamma-1)*M**2*incomp/2)**(gamma/(gamma-1))-1)/(M**2*gamma)
     def calcforces(self): #compute force correspondent to unitary dynamic pressure on each panel
         self.forces=[-self.panels[i].S*self.panels[i].nvector*self.Cps[i]+self.panels[i].S*self.Cfs[i]*\
             (self.vbar[i, :]+self.delphi[i, :])/lg.norm(self.vbar[i, :]+self.delphi[i, :]) for i in range(self.npanels)]
         self.moments=[np.cross(self.panels[i].colpoint, self.forces[i]) for i in range(self.npanels)]
-    def calc_derivative_dv(self, Uinf, dvdksi): #calculate local Cp derivative by freestream derivative
+    def calc_derivative_dv(self, Uinf, dvdksi, M=0.0, gamma=1.4): #calculate local Cp derivative by freestream derivative
         dndksi=np.array([self.panels[i].nvector@dvdksi[i, :] for i in range(self.npanels)])
         dGammadksi=-self.iaicm@dndksi
         dGamma_linedksi=self.panline_matrix@dGammadksi
@@ -549,8 +554,12 @@ class Solid:
         dvdksi[:, 1]+=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
         dvdksi[:, 2]+=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
+        if M!=0.0:
+            for i in range(self.npanels):
+                incomp=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2 #incompressible value
+                dCps[i]=2*((1+(gamma-1)*M**2*incomp/2)**(1.0/(gamma-1.0)))*dCps[i]/(M**2*(gamma-1.0))
         return dCps
-    def calc_derivative_dn(self, Uinf, dndksi): #calculate local Cp derivative by normal velocity derivative
+    def calc_derivative_dn(self, Uinf, dndksi, M=0.0, gamma=1.4): #calculate local Cp derivative by normal velocity derivative
         dGammadksi=-self.iaicm@dndksi
         dGamma_linedksi=self.panline_matrix@dGammadksi
         dvdksi=np.zeros((len(dndksi), 3))
@@ -558,6 +567,10 @@ class Solid:
         dvdksi[:, 1]=self.aicm3[1, :, :]@dGammadksi+self.selfinf_mat_y@dGamma_linedksi
         dvdksi[:, 2]=self.aicm3[2, :, :]@dGammadksi+self.selfinf_mat_z@dGamma_linedksi
         dCps=np.array([-(2*(self.vbar[i, :]+self.delphi[i, :])@dvdksi[i, :])/Uinf**2 for i in range(self.npanels)])
+        if M!=0.0:
+            for i in range(self.npanels):
+                incomp=(Uinf**2-(self.delphi[i, :]+self.vbar[i, :])@(self.delphi[i, :]+self.vbar[i, :]))/Uinf**2 #incompressible value
+                dCps[i]=2*((1+(gamma-1)*M**2*incomp/2)**(1.0/(gamma-1.0)))*dCps[i]/(M**2*(gamma-1.0))
         return dCps
     def add_wakevels(self, tolerance=1e-5): #calculate velocities at wake panel control points and add to local velocity variables
         for strip in self.wakestrips:
@@ -705,7 +718,7 @@ class Solid:
         plt.xlabel('x')
         plt.ylabel('y')
         plt.show()
-    def eulersolve(self, target=np.array([]), Uinf=1.0, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
+    def eulersolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
         wakeiter=0, tolerance=1e-5):
         if echo:
             print('========Euler solution=======')
@@ -724,7 +737,7 @@ class Solid:
         t=tm.time()
         self.PG_remove(beta, a, b)
         self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
-        self.calcpress(Uinf=Uinf)
+        self.calcpress(Uinf=Uinf, M=M, gamma=gamma)
         self.calcforces()
         if echo:
             print('Solution and post-processing: '+str(tm.time()-t)+' s')

@@ -19,7 +19,7 @@ right_wingquad=wing_quadrant(sld, sect1=root_sect, sect2=right_tip_sect)
 wng=wing(sld, wingquads=[left_wingquad, right_wingquad])
 
 acft=aircraft(sld, elems=[wng])
-acft.edit_parameters({'a':alpha, 'Uinf':Uinf, 'M':0.5})
+acft.edit_parameters({'a':alpha, 'Uinf':Uinf, 'M':0.7})
 acft.plot_input()
 
 wng.patchcompose(ydisc=50)

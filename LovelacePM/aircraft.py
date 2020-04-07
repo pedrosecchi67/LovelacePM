@@ -335,7 +335,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             bdy.apply_eqflatplate(rho=rho, mu=mu, turbulent_criterion=turbulent_criterion, Cf_l_rule=Cf_l_rule, Cf_t_rule=Cf_t_rule, Uinf=self.Uinf)
     def eulersolve(self, echo=True, damper=0.0, tolerance=1e-5, wakeiter=0):
         self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, \
-            r=self.r*2*self.Uinf/self.bref, damper=damper, Uinf=self.Uinf, echo=True, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
+            r=self.r*2*self.Uinf/self.bref, damper=damper, Uinf=self.Uinf, echo=True, M=self.M, gamma=self.gamma, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
     def forces_report(self):
         print('========Total Forces Report========')
         if self.hascorrections:
