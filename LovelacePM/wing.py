@@ -673,7 +673,7 @@ class wing:
             dCm+=dCm_quad
             dCn+=dCn_quad
         return dCX, dCY, dCZ, dCl, dCm, dCn
-    def calc_design_dFM(self, section=0, Uinf=1.0, rho=1.225, CG=np.zeros(3)): #section: index between 0 and len(self.wingquads) to indicate the section to derivate coefficients based on
+    def calc_design_dFM(self, section=0, Uinf=1.0, rho=1.225, CG=np.zeros(3), M=0.0, gamma=1.4): #section: index between 0 and len(self.wingquads) to indicate the section to derivate coefficients based on
         #returns derivatives of forces and moments
         drdinc=np.zeros((self.sld.npanels, 3))
         dndinc=np.zeros((self.sld.npanels, 3))
@@ -684,7 +684,7 @@ class wing:
         dnvvdinc=np.zeros(self.sld.npanels) #derivative of normal velocity component
         for i in range(self.sld.npanels):
             dnvvdinc[i]=self.sld.vbar[i, :]@dndinc[i, :]
-        dCps=self.sld.calc_derivative_dn(Uinf=Uinf, dndksi=dnvvdinc)
+        dCps=self.sld.calc_derivative_dn(Uinf=Uinf, dndksi=dnvvdinc, M=M, gamma=gamma)
         dFs=np.zeros((self.sld.npanels, 3))
         dMs=np.zeros((self.sld.npanels, 3))
         for i in range(self.sld.npanels):

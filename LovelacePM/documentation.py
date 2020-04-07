@@ -478,6 +478,8 @@ in wing\'s axis (if axis==2, note that alpha should be interpreted as a sideslip
 wing.wing_quadrant.hascorrection.__doc__='''hascorrection(): returns whether both wing quadrant sections have viscous corrections for application'''
 wing.wing_quadrant.calc_corrected_forces.__doc__='''calc_corrected_forces(): calculate corrections for sectional forces based on each edge section\'s available viscous corrections.
 Returns variations in coefficients return dCX, dCY, dCZ, dCl, dCm, dCn integrated along wing quadrant'''
+wing.wing_quadrant.design_derivs.__doc__='''design_derivs(sectside=1): returns derivatives in panel positions (drdi) and normal vectors (dndi) for an incidence variation 
+of section \'sectside\' in the given quadrant. Return value in degrees'''
 
 wing.wing.__doc__='''
 Class to model a whole wing through calls to methods of several queued wing quadrants
@@ -511,6 +513,7 @@ plot_input
 genwakepanels
 hascorrection
 calc_corrected_forces
+calc_design_dFM
 '''
 wing.wing.__init__.__doc__='''__init__(sld, wingquads=[]): instantiate wing with its list of wing quadrants (listed left/up to right/down) and its bound solid (sld)'''
 wing.wing.set_aircraft.__doc__='''set_aircraft(acft): sets the wing\'s bound aircraft to acft'''
@@ -530,6 +533,8 @@ wing.wing.genwakepanels.__doc__='''genwakepanels(offset=1000.0, a=0.0, b=0.0): g
 wing.wing.hascorrection.__doc__='''hascorrection(): checks whether all wing quadrants in the wing have been provided with viscous corrections. It is a condition for the application of those corrections
 in coefficient calculations'''
 wing.wing.calc_corrected_forces.__doc__='''calc_corrected_forces(): returns dCX, dCY, dCZ, dCl, dCm, dCn considering viscous corrections'''
+wing.wing.calc_design_dFM.__doc__='''calc_design_dFM(section=0, Uinf=1.0, rho=1.225, CG=np.zeros(3), M=0.0, gamma=1.4): calculates derivatives in forces and moments (returned respectively in tuple)
+according to variation in section (identified by section kwarg). Values in degrees'''
 
 body.__doc__='''
 Module containing definitions necessary for non-lifting body definitions
@@ -759,6 +764,7 @@ eulersolve
 forces_report
 plot_input
 plotgeometry
+design_derivatives
 '''
 aircraft.aircraft.__init__.__doc__='''__init__(sld, elems=[], Sref=0.0, cref=0.0, bref=0.0, echo=True, CG=np.array([0.0, 0.0, 0.0])): aircraft constructor, using bound Solid object as input, and all
 wings and bodies in elems list. Reference quantities, if provided as zero/not provided, will be calculated from the first input wing if any is present (or set to 1.0 if none is provided). If echo
@@ -804,6 +810,9 @@ are all accounted in radians. Returns external_history, alpha_history, beta_hist
 (in external coordinate system) in time (array time_history). beta history and alpha history are arrays reporting the evolution of alpha and beta perturbations in time, in radians. To add onboard moment addition
 for engines, use argument onboard. All coordinate systems (except for the one reported as external in return values) are stability coordinate systems (z, x axis inverted). If trim is set to True, 
 coefficients for analysis angle of attack and sideslip are set to zero to simulate a trimmed aircraft'''
+aircraft.aircraft.design_derivatives.__doc__='''design_derivatives(wings=[], echo=True): computes design derivatives of aerodynamic coefficients (in degrees) with respect to wing section incidence changes.
+returns list of lists. Each sublist includes the dictionaries, each dictionary with keys \'dCL\', \'dCD\', \'dCX\', etc for all derivatives of a given wing section. Order in return value is:
+[[w1-section1, w1-section2], [w2-section1, ...]]'''
 
 aerodynamic_output.__doc__='''
 Module containing functions for plotting aerodynamic results
