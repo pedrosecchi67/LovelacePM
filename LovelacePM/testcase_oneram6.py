@@ -34,6 +34,7 @@ plot_Cds(sld, wings=[wng])
 plot_Cms(sld, wings=[wng])
 plot_Cps(sld, elems=[wng])
 
-acft.design_derivatives(wings=[wng])
+results=acft.design_derivatives(wings=[wng])
+print(results)
 
 os.chdir(ordir)
