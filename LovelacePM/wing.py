@@ -377,7 +377,7 @@ class wing_quadrant: #wing region between two airfoil sections
         Mtosys=np.vstack((u, v, w))
         return Mtosys.T@(np.array([[0.0, 0.0, 1.0], \
             [0.0, 0.0, 0.0], \
-                [-1.0, 0.0, 0.0]]))@Mtosys
+                [-1.0, 0.0, 0.0]]))@Mtosys*np.pi/180
     def design_derivs(self, sectside=1): #calculate derivatives for posisions and normal vectors by the incidence of each section (identified in sectside kwarg)
         panrs=np.zeros((len(self.paninds), 3))
         panns=np.zeros((len(self.paninds), 3))

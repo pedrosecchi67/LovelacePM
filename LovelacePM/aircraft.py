@@ -395,12 +395,12 @@ class aircraft: #class to ease certain case studies for full aircraft
             wnglist+=[[]]
             if echo:
                 print('=============================================')
-                print('Design derivatives for incidences in wing %d' % (wngcnt))
+                print('Design derivatives for incidences in wing %d [deg]' % (wngcnt))
             for sect in range(len(wng.wingquads)+1):
                 dFs, dMs=wng.calc_design_dFM(section=sect, Uinf=self.Uinf, rho=self.rho, CG=self.CG)
                 #transform to derivatives in respect to degrees
-                dFs*=np.pi/180.0
-                dMs*=np.pi/180.0
+                '''dFs*=np.pi/180.0
+                dMs*=np.pi/180.0'''
                 dFs/=self.Sref*self.rho*self.Uinf**2/2
                 dMs[0]/=self.Sref*self.bref*self.rho*self.Uinf**2/2
                 dMs[1]/=self.Sref*self.cref*self.rho*self.Uinf**2/2
