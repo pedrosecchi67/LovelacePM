@@ -10,3 +10,4 @@
 *.egg-info
 /build
 *.lup
+/_skbuild

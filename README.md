@@ -14,7 +14,7 @@ To install LovelacePM, use:
 
 ```pip3 install LovelacePM```
 
-**Note that, on Windows, pip might require that you install [Visual C++ Compiler for Python](https://wiki.python.org/moin/WindowsCompilers), which is needed for compilation of FORTRAN modules.**
+**Note that, when installing source distributions on Windows, pip might require that you install [Visual C++ Compiler for Python](https://wiki.python.org/moin/WindowsCompilers), which is needed for compilation of FORTRAN modules.**
 
 For further installation instructions, check out the final section of this README.
 
