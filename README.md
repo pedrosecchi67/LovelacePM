@@ -22,6 +22,8 @@ To install LovelacePM, use:
 
 **Note that, when installing source distributions on Windows, pip might require that you install [Visual C++ Compiler for Python](https://wiki.python.org/moin/WindowsCompilers), which is needed for compilation of FORTRAN modules.**
 
+**The use of a pre-compiled wheel for Windows AMD64, however, is the default for pip since version v0.1.7 of LovelacePM.**
+
 For further installation instructions, check out the final section of this README.
 
 To quickly analysie an ONERA M6 wing, start by importing the package and defining its dimensions. You can then run a simulation as the one below. File 'onerad.dat' should be located in the simulation's directory.

@@ -1,6 +1,5 @@
 import setuptools
 from numpy.distutils.core import Extension
-#from skbuild import setup
 from numpy.distutils.core import setup
 
 with open("README.md", "r") as fh:
@@ -28,6 +27,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'scipy', 'matplotlib', 'LoveUpdate', 'skbuild'],
-    python_requires='>=3.7',
+    install_requires=['numpy', 'scipy', 'matplotlib', 'LoveUpdate'],
+    python_requires='>=3.6',
 )
