@@ -10,6 +10,12 @@ Named after Ada Lovelace and her fascination for flying machines!
 
 ### Defining a wing
 
+To install LovelacePM's dependencies, use:
+
+```
+pip3 install numpy; pip3 install skbuild
+```
+
 To install LovelacePM, use:
 
 ```pip3 install LovelacePM```
