@@ -12,6 +12,7 @@ import multiprocessing as mp
 import os
 
 import toolkit
+import pytoolkit
 from utils import *
 
 class Panel: #Panel data type
@@ -26,7 +27,7 @@ class Panel: #Panel data type
 def subprocess_genaicm(queue1, queue2): #generic function to unpack AICM calc order from multiprocessing 
     #queue and deliver it to calculating function in toolkit
     order=queue1.get()
-    AICM=toolkit.aicm_lines_gen(order[2], order[3])
+    AICM=pytoolkit.aicm_lines_gen(order[2], order[3])
     queue2.put((order[0], order[1], AICM))
 
 class WakeLine: #class encompassing info about a wake line. Made so as to compute deformation with wake rollup
