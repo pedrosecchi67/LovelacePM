@@ -522,7 +522,7 @@ class Solid:
             self.aicm3_line[:, :, wakelininds]=toolkit.aicm_lines_recalc(wakelininds+1, self.lines, colmat)
             for j in range(3):
                 self.aicm3[j, :, :]=self.aicm3_line[j, :, :]@self.panline_matrix
-            self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
+            self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
             if damper!=0.0:
                 self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
             else:

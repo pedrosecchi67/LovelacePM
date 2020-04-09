@@ -27,3 +27,6 @@ def aicm_lines_gen(lines, colpoints):
         M[2, i, :]=(A[:, 0]*B[:, 1]-A[:, 1]*B[:, 0])*(1.0/na+1.0/nb)/((na*nb+p)*(np.pi*4))
 
     return M
+
+def aicm_norm_conv(aicm3, nvectmat):
+    return aicm3[0, :, :]*nvectmat[:, 0]+aicm3[1, :, :]*nvectmat[:, 1]+aicm3[2, :, :]*nvectmat[:, 2]
