@@ -1,5 +1,6 @@
 import numpy as np
 from math import *
+import numpy.linalg as lg
 
 #file to replace toolkit.f90 functions with raw python functions
 
@@ -29,4 +30,45 @@ def aicm_lines_gen(lines, colpoints):
     return M
 
 def aicm_norm_conv(aicm3, nvectmat):
-    return aicm3[0, :, :]*nvectmat[:, 0]+aicm3[1, :, :]*nvectmat[:, 1]+aicm3[2, :, :]*nvectmat[:, 2]
+    return (aicm3[0, :, :].T*nvectmat[:, 0]).T+(aicm3[1, :, :].T*nvectmat[:, 1]).T+(aicm3[2, :, :].T*nvectmat[:, 2]).T
+
+def isitin(pts, pcont, centers, nvect, isvalid, tolerance, npan): #the function capable of ruining any man's pride!
+    #isin=np.ones(npan, dtype='bool')
+    isin=isvalid
+    dot=np.zeros(npan)
+    side=np.zeros((npan, 3))
+    vec=np.zeros((npan, 3))
+    prod=np.zeros((npan, 3))
+    #vec=pcont-centers
+    #dot=nvect[:, 0]*vec[:, 0]+nvect[:, 1]*vec[:, 1]+nvect[:, 2]*vec[:, 2]
+    #isin=np.abs(dot)<tolerance
+    for i in range(4):
+        side[isin, :]=pts[isin, :, (i+1)%4]-pts[isin, :, i]
+        vec[isin, :]=pcont[isin, :]-pts[isin, :, i]
+        prod[isin, 0]=vec[isin, 1]*side[isin, 2]-vec[isin, 2]*side[isin, 1]
+        prod[isin, 1]=vec[isin, 2]*side[isin, 0]-vec[isin, 0]*side[isin, 2]
+        prod[isin, 2]=vec[isin, 0]*side[isin, 1]-vec[isin, 1]*side[isin, 0]
+        dot[isin]=prod[isin, 0]*nvect[isin, 0]+prod[isin, 1]*nvect[isin, 1]+prod[isin, 2]*nvect[isin, 2]
+        isin[isin]=np.logical_and(isin[isin], np.logical_or(dot[isin]<tolerance, lg.norm(side[isin, :], axis=1)<tolerance))
+    return isin
+
+def get_panel_contact(p, u, centers, nvects, pts, tolerance):
+    npan=np.size(nvects, axis=0)
+    #remember: shape(pts)==(npan, 3, 4)
+    pnorm=(p[0]-centers[:, 0])*nvects[:, 0]+(p[1]-centers[:, 1])*nvects[:, 1]+(p[2]-centers[:, 2])*nvects[:, 2]
+    unorm=(u@nvects.T).T
+    isvalid=unorm<-tolerance
+    lambdas=np.zeros(npan)
+    lambdas[isvalid]=-pnorm[isvalid]/unorm[isvalid]
+    pcont=np.zeros((npan, 3))
+    pcont[:, 0]=p[0]+u[0]*lambdas
+    pcont[:, 1]=p[1]+u[1]*lambdas
+    pcont[:, 2]=p[2]+u[2]*lambdas
+    isin=isitin(pts, pcont, centers, nvects, isvalid, tolerance, npan)
+    error=not np.any(isin)
+    if not error:
+        pcont=pcont[isin, :]
+        pcont=pcont[0, :]
+    else:
+        pcont=np.zeros(3)
+    return pcont, error

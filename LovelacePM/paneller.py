@@ -421,7 +421,7 @@ class Solid:
         self.aicm3=np.zeros((3, self.npanels, self.npanels))
         for i in range(3):
             self.aicm3[i, :, :]=self.aicm3_line[i, :, :]@self.panline_matrix
-        self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
+        self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
     def gen_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
         for i in range(self.npanels):
@@ -677,10 +677,6 @@ class Solid:
         for i in self.problematic:
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
         if self.solavailable and velfield:
-            '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-                [p.colpoint[2] for p in self.panels], [p.nvector[0]*0.005 for p in self.panels], \
-                    [p.nvector[1]*0.005 for p in self.panels], \
-                        [p.nvector[2]*0.005 for p in self.panels])'''
             ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
                 [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
                     [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \

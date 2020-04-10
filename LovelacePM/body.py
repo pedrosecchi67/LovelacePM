@@ -11,6 +11,7 @@ import scipy.interpolate as sinterp
 import time as tm
 
 import toolkit
+import pytoolkit
 from utils import *
 
 from paneller import *
@@ -56,13 +57,21 @@ class body_section:
         return np.array([0.0, self.y_expand*sin(th), self.z_expand*cos(th)])*R*self.R+self.center
 
 class body_panel: #exclusively for intersection finding purposes
-    def __init__(self, p1, p2, p3, p4, tolerance=0.00005):
+    def __init__(self, p1, p2, p3, p4, tolerance=1e-5):
         points=np.vstack((p1, p2, p3, p4)).T
         self.points=points
-        self.center, self.Mtosys, self.Mtouni, self.locpoints, error=toolkit.body_panel_process(self.points, tolerance)
-        if error:
-            print('WARNING: error in body panel generation. Please check input geometry\'s integrity')
-        #FORTRAN was used here for speed up purposes
+        i=0
+        nxt=1
+        notfound=True
+        while i<4 and notfound:
+            u=points[:, (i+1)%4]-points[:, i]
+            v=points[:, (nxt+1)%4]-points[:, nxt]
+            notfound=(lg.norm(u)<tolerance or lg.norm(v)<tolerance)
+            i+=1
+            nxt=(i+1)%4
+        self.nvector=np.cross(u, v)
+        self.nvector/=lg.norm(self.nvector)
+        self.center=np.mean(self.points, axis=1)
 
 def prevline_organize(queue, nlines, prevlateral=[], intra=False, right=False):
     #organize prevline dictionary element for body's patchcompose
@@ -115,9 +124,9 @@ class body: #body definition class for center definition to obtain polar cooridi
                     self.sections[i].coords[j+1, :], tolerance=tolerance)]
     def find_body_intersect(self, p, u, tolerance=0.00005):
         #return abutment point for wing called function to push out wing points
-        return toolkit.get_panel_contact(p, u, np.array([p.Mtosys for p in self.body_panels]), \
-            np.array([list(p.Mtouni) for p in self.body_panels]), np.array([list(p.locpoints) for p in self.body_panels]), \
-                np.array([list(p.center) for p in self.body_panels]), tolerance)
+        return pytoolkit.get_panel_contact(p, u, np.array([list(p.center) for p in self.body_panels]), \
+            np.array([list(p.nvector) for p in self.body_panels]), \
+                np.array([list(p.points) for p in self.body_panels]), tolerance)
     def plot_input(self, fig=None, ax=None, show=False, xlim=[], \
         ylim=[], zlim=[], colour='gray'): #plot input geometry data
         if fig==None:
@@ -319,7 +328,6 @@ class body: #body definition class for center definition to obtain polar cooridi
                 else:
                     surfpts=surf.extraleft_points
             xposit+=[pt[0] for pt in surfpts]
-            #thetas+=[toolkit.pointarg(self.center(pt[0]), pt) for pt in surfpts]
             thetas+=[atan2((pt[1]-self.center(pt[0])[1])/self.y_expand_rule(pt[0]), (pt[2]-self.center(pt[0])[2])/self.z_expand_rule(pt[0])) \
                 for pt in surfpts]
 
@@ -408,7 +416,7 @@ class body: #body definition class for center definition to obtain polar cooridi
                     [self.body_panels[i].points[1, j], self.body_panels[i].points[1, (j+1)%4]], \
                         [self.body_panels[i].points[2, j], self.body_panels[i].points[2, (j+1)%4]], 'gray')
             ax.quiver(self.body_panels[i].center[0], self.body_panels[i].center[1], self.body_panels[i].center[2], \
-                self.body_panels[i].Mtouni[0, 2]*factor, self.body_panels[i].Mtouni[1, 2]*factor, self.body_panels[i].Mtouni[2, 2]*factor)
+                self.body_panels[i].nvector[0]*factor, self.body_panels[i].nvector[1]*factor, self.body_panels[i].nvector[2]*factor)
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
         if len(ylim)!=0:

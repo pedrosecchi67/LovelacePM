@@ -130,7 +130,7 @@ class wing_quadrant: #wing region between two airfoil sections
     def trim_bybody(self, contactbody, sectside=2, tolerance=0.00005):
         #trim wing section by body contact, for abutment
         if sectside==2:
-            ps=self.sect1.points
+            ps=self.sect2.points
             us=self.sect2.points-self.sect1.points
             for i in range(np.size(self.sect2.points, 0)):
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
@@ -140,9 +140,9 @@ class wing_quadrant: #wing region between two airfoil sections
                 else:
                     self.sect2.points[i, :]=newpt
         else:
-            ps=self.sect2.points
+            ps=self.sect1.points
             us=self.sect1.points-self.sect2.points
-            for i in range(np.size(self.sect2.points, 0)):
+            for i in range(np.size(self.sect1.points, 0)):
                 newpt, errorcode=contactbody.find_body_intersect(ps[i, :], us[i, :], tolerance=tolerance)
                 if errorcode:
                     print('An error has been detected while trimming a wing section to a fuselage. Please check geometry to verify whether all requested intersections are possible,', \
