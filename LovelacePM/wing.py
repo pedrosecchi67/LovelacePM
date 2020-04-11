@@ -10,7 +10,6 @@ from mpl_toolkits import mplot3d
 import scipy.sparse as sps
 import time as tm
 
-import toolkit
 from utils import *
 from body import *
 from control import *

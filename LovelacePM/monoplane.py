@@ -82,13 +82,11 @@ vertemp_tip=wing_section(c=empv_c*empv_taper, afl='atr_rud', afldir=os.getcwd(),
 vertemp_quad=wing_quadrant(sld, sect1=vertemp_tip, sect2=vertemp_root)
 vertemp=wing(sld, wingquads=[vertemp_quad])
 
-t=tm.time()
 wing1.trim_bybody(fuselage, sectside=2)
 wing2.trim_bybody(fuselage, sectside=1)
 horzemp1.trim_bybody(fuselage, sectside=2)
 horzemp2.trim_bybody(fuselage, sectside=1)
 vertemp.trim_bybody(fuselage, sectside=2)
-print(tm.time()-t)
 
 S, mac, _=wing1.calc_reference()
 acft=aircraft(sld, elems=[fuselage, wing1, wing2, horzemp1, horzemp2, vertemp], cref=mac, Sref=2*S, bref=b, CG=np.array([0.0, 0.0, fuselage_height/2]))

@@ -8,7 +8,7 @@ from mpl_toolkits import mplot3d
 import time as tm
 import numpy.random as rnd
 
-import toolkit
+import pytoolkit
 
 from paneller import *
 

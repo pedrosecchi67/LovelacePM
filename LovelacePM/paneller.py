@@ -11,7 +11,6 @@ import time as tm
 import multiprocessing as mp
 import os
 
-import toolkit
 import pytoolkit
 from utils import *
 
@@ -519,7 +518,7 @@ class Solid:
             tvel=tm.time()
             self.wake_rollup()
             trol=tm.time()
-            self.aicm3_line[:, :, wakelininds]=toolkit.aicm_lines_recalc(wakelininds+1, self.lines, colmat)
+            self.aicm3_line[:, :, wakelininds]=pytoolkit.aicm_lines_recalc(wakelininds, self.lines, colmat)
             for j in range(3):
                 self.aicm3[j, :, :]=self.aicm3_line[j, :, :]@self.panline_matrix
             self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
@@ -576,7 +575,7 @@ class Solid:
     def add_wakevels(self, tolerance=1e-5): #calculate velocities at wake panel control points and add to local velocity variables
         for strip in self.wakestrips:
             for p in strip:
-                p.v+=toolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
+                p.v+=pytoolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
     def wake_rollup(self): #calculate velocity at nodes located at wake line midpoints and update the lines
         for strip in self.wakestrips:
             for p in strip:

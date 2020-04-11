@@ -10,7 +10,6 @@ import scipy.sparse as sps
 import scipy.interpolate as sinterp
 import time as tm
 
-import toolkit
 from utils import *
 
 from paneller import *

@@ -11,8 +11,6 @@ import scipy.interpolate as sinterp
 import time as tm
 
 import fdyn
-import toolkit
-from utils import *
 
 from paneller import *
 from body import *
