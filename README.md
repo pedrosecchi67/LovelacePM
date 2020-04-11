@@ -20,9 +20,9 @@ To install LovelacePM, use:
 
 ```pip3 install LovelacePM```
 
-**Note that, when installing source distributions on Windows, pip might require that you install [Visual C++ Compiler for Python](https://wiki.python.org/moin/WindowsCompilers), which is needed for compilation of FORTRAN modules.**
+**Note that, when installing source distributions on Windows, pip might require that you install [Visual C++ Compiler for Python](https://wiki.python.org/moin/WindowsCompilers), which is needed for compilation of Fortran modules.**
 
-**The use of a pre-compiled wheel for Windows AMD64, however, is the default for pip since version v0.1.7 of LovelacePM.**
+**From version v0.1.7 and on, LovelacePM has been converted to raw Python and can thus be installed on any platform without worries on the need for compilers.**
 
 For further installation instructions, check out the final section of this README.
 
@@ -228,7 +228,7 @@ The system requirements defined for the final product are labelled below, along 
 * Performing viscous effect estimations based on viscid-inviscid coupling exclusively with geometry, Mach and Reynolds specifications, accepting custom initial guesses for boundary layer thickness; (2, 3) [not yet implemented]
 * Modelling fuselages, nacelles and engines accurately in terms of Euler solution and viscous flow; (3) [completed for non-lifting bodies]
 * Approximating rotor behaviour through means of geometry and flow information, provided either by previous BEMT or LLT calculations (I. E., recieving local inflow characteristics along the rotor); (3) [not yet implemented]
-* Providing user control over every step of calculations through Python functions so as to make the applied method customized for the user's own research purpose, recurring to precompiled FORTRAN backend for optimal performance only for strictly mathematical steps. (2)
+* Providing user control over every step of calculations through Python functions so as to make the applied method customized for the user's own research purpose, recurring to precompiled Fortran backend for optimal performance only for strictly mathematical steps. (2)
 
 ### Test cases
 
@@ -263,7 +263,7 @@ And compare with references in:
 
 * Python's suggested naming conventions are adopted. Initials may also be referred to in capital letters;
 * All functions related to Euler solutions should be either defined in paneller.py or called from it, so as to ease access. utils.py may also contain independent geometry-related functions;
-* All FORTRAN backend subroutines should be defined in toolkit.f90 (for aerodynamics related functions) or fdyn.f90 (for flight dynamics related functions), obeying the FORTRAN 90 standard.
+* All Fortran backend subroutines should be defined in toolkit.f90 (for aerodynamics related functions) or fdyn.f90 (for flight dynamics related functions), obeying the Fortran 90 standard.
 
 ### Dependencies
 
@@ -278,6 +278,8 @@ git clone https://github.com/pedrosecchi67/LovelacePM.git
 cd LovelacePM
 pip install -e . #installing using pip and setup.py, thus adding the package to PYTHONPATH variable and making the repository folder the source folder for calls in any python shell
 ```
+
+Versions up to v0.1.6 require compilation of Fortran modules, which can be performed with correspondent setup.py file and setuptools, or using the steps below.
 
 For custom compilation of mathematical modules, use:
 
