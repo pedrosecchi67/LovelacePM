@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import time as tm
 
-import toolkit
+import pytoolkit
 
 from paneller import *
 from utils import *

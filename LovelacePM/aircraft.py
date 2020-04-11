@@ -10,9 +10,7 @@ import scipy.sparse as sps
 import scipy.interpolate as sinterp
 import time as tm
 
-import fdyn
-import toolkit
-from utils import *
+import pyfdyn
 
 from paneller import *
 from body import *
@@ -77,7 +75,7 @@ class aircraft: #class to ease certain case studies for full aircraft
             derivs[i, :]=np.array([-self.stabderivative_dict[par]['dCX'], self.stabderivative_dict[par]['dCY'], -self.stabderivative_dict[par]['dCZ'], \
                 -self.stabderivative_dict[par]['dCl'], self.stabderivative_dict[par]['dCm'], -self.stabderivative_dict[par]['dCn']])
             i+=1
-        external_history, alpha_history, beta_history, euler_history, time_history=fdyn.tstep_solve(nstep, dt, self.rho, self.Uinf, self.g, \
+        external_history, alpha_history, beta_history, euler_history, time_history=pyfdyn.tstep_solve(int(nstep), dt, self.rho, self.Uinf, self.g, \
             self.Sref, self.cref, self.bref, perturbations, onboard, self.Inertia, self.m, \
                 coeffs, derivs)
         return external_history, alpha_history, beta_history, euler_history, time_history

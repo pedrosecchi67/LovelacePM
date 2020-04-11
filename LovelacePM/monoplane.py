@@ -61,17 +61,12 @@ tip_2=wing_section(afl='atr_foil', afldir=os.getcwd(), c=c*taper, CA_position=np
 wing2quad=wing_quadrant(sld, sect1=root_2, sect2=tip_2)
 wing2=wing(sld, wingquads=[wing2quad])
 
-wing1.trim_bybody(fuselage, sectside=2)
-wing2.trim_bybody(fuselage, sectside=1)
-
 horzemp_tip1=wing_section(afl='atr_emp', afldir=os.getcwd(), CA_position=np.array([cabin_length-cabin_aft_projection+tailcone_length-0.75*emph_c-emph_offset, -emph_b/2, emph_height]), \
     c=emph_c*emph_taper, inverse=True, xdisc=20, closed=True)
 horzemp_root1=wing_section(afl='atr_emp', afldir=os.getcwd(), CA_position=np.array([cabin_length-cabin_aft_projection+tailcone_length-0.75*emph_c-emph_offset, 0.0, emph_height]), \
     c=emph_c, inverse=True, xdisc=20)
 horzemp1_quad=wing_quadrant(sld, sect1=horzemp_tip1, sect2=horzemp_root1)
 horzemp1=wing(sld, wingquads=[horzemp1_quad])
-
-horzemp1.trim_bybody(fuselage, sectside=2)
 
 horzemp_tip2=wing_section(afl='atr_emp', afldir=os.getcwd(), CA_position=np.array([cabin_length-cabin_aft_projection+tailcone_length-0.75*emph_c-emph_offset, emph_b/2, emph_height]), \
     c=emph_c*emph_taper, inverse=True, xdisc=20, closed=True)
@@ -80,8 +75,6 @@ horzemp_root2=wing_section(afl='atr_emp', afldir=os.getcwd(), CA_position=np.arr
 horzemp2_quad=wing_quadrant(sld, sect2=horzemp_tip2, sect1=horzemp_root2)
 horzemp2=wing(sld, wingquads=[horzemp2_quad])
 
-horzemp2.trim_bybody(fuselage, sectside=1)
-
 vertemp_root=wing_section(c=empv_c, afl='atr_rud', afldir=os.getcwd(), CA_position=np.array([cabin_length-cabin_aft_projection+tailcone_length-0.75*empv_c-empv_offset, 0.0, empv_height]), \
     gamma=-90.0, xdisc=15)
 vertemp_tip=wing_section(c=empv_c*empv_taper, afl='atr_rud', afldir=os.getcwd(), CA_position=np.array([cabin_length-cabin_aft_projection+tailcone_length-0.75*empv_c-empv_offset, 0.0, empv_height+empv_b]), \
@@ -89,6 +82,10 @@ vertemp_tip=wing_section(c=empv_c*empv_taper, afl='atr_rud', afldir=os.getcwd(),
 vertemp_quad=wing_quadrant(sld, sect1=vertemp_tip, sect2=vertemp_root)
 vertemp=wing(sld, wingquads=[vertemp_quad])
 
+wing1.trim_bybody(fuselage, sectside=2)
+wing2.trim_bybody(fuselage, sectside=1)
+horzemp1.trim_bybody(fuselage, sectside=2)
+horzemp2.trim_bybody(fuselage, sectside=1)
 vertemp.trim_bybody(fuselage, sectside=2)
 
 S, mac, _=wing1.calc_reference()
@@ -115,7 +112,7 @@ Izz=14.59390*1.967*0.3048**2
 acft.edit_parameters({'Uinf':Uinf})
 
 acft.addwake()
-acft.plotgeometry()#(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+tailcone_height, 0.5+tailcone_height])
+acft.plotgeometry()#xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+tailcone_height, 0.5+tailcone_height])
 #sld.plotnormals(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5, 0.5], factor=0.05)
 acft.eulersolve()
 acft.forces_report()

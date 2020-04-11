@@ -13,7 +13,7 @@ from control import *
 from aircraft import *
 from xfoil_visc import *
 from aerodynamic_output import *
-from toolkit import *
+from pytoolkit import *
 tdy=LoveUpdate.getdate()
 if not os.path.exists('updatestat.lup'):
     lupfile=open('updatestat.lup', 'wb')

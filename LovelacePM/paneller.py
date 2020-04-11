@@ -11,7 +11,7 @@ import time as tm
 import multiprocessing as mp
 import os
 
-import toolkit
+import pytoolkit
 from utils import *
 
 class Panel: #Panel data type
@@ -26,7 +26,7 @@ class Panel: #Panel data type
 def subprocess_genaicm(queue1, queue2): #generic function to unpack AICM calc order from multiprocessing 
     #queue and deliver it to calculating function in toolkit
     order=queue1.get()
-    AICM=toolkit.aicm_lines_gen(order[2], order[3])
+    AICM=pytoolkit.aicm_lines_gen(order[2], order[3])
     queue2.put((order[0], order[1], AICM))
 
 class WakeLine: #class encompassing info about a wake line. Made so as to compute deformation with wake rollup
@@ -420,7 +420,7 @@ class Solid:
         self.aicm3=np.zeros((3, self.npanels, self.npanels))
         for i in range(3):
             self.aicm3[i, :, :]=self.aicm3_line[i, :, :]@self.panline_matrix
-        self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
+        self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
     def gen_farfield(self, Uinf, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0): #generate generic local freestream velocity dependant on parameters
         newvec=np.zeros((self.npanels, 3))
         for i in range(self.npanels):
@@ -518,10 +518,10 @@ class Solid:
             tvel=tm.time()
             self.wake_rollup()
             trol=tm.time()
-            self.aicm3_line[:, :, wakelininds]=toolkit.aicm_lines_recalc(wakelininds+1, self.lines, colmat)
+            self.aicm3_line[:, :, wakelininds]=pytoolkit.aicm_lines_recalc(wakelininds, self.lines, colmat)
             for j in range(3):
                 self.aicm3[j, :, :]=self.aicm3_line[j, :, :]@self.panline_matrix
-            self.aicm=toolkit.aicm_norm_conv(self.aicm3, nvectmat)
+            self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
             if damper!=0.0:
                 self.iaicm=slg.inv(self.aicm.T@self.aicm+damper*np.eye(self.npanels, self.npanels))@self.aicm.T
             else:
@@ -575,7 +575,7 @@ class Solid:
     def add_wakevels(self, tolerance=1e-5): #calculate velocities at wake panel control points and add to local velocity variables
         for strip in self.wakestrips:
             for p in strip:
-                p.v+=toolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
+                p.v+=pytoolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
     def wake_rollup(self): #calculate velocity at nodes located at wake line midpoints and update the lines
         for strip in self.wakestrips:
             for p in strip:
@@ -676,10 +676,6 @@ class Solid:
         for i in self.problematic:
             ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
         if self.solavailable and velfield:
-            '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-                [p.colpoint[2] for p in self.panels], [p.nvector[0]*0.005 for p in self.panels], \
-                    [p.nvector[1]*0.005 for p in self.panels], \
-                        [p.nvector[2]*0.005 for p in self.panels])'''
             ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
                 [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
                     [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \

@@ -15,8 +15,8 @@ from aircraft import *
 from xfoil_visc import *
 from aerodynamic_output import *
 
-a=10.0
-q=0.4
+a=0.0
+q=0.1
 Uinf=0.05
 b=1.2
 taper=1.0
@@ -32,18 +32,18 @@ wng=wing(sld, wingquads=[wng1])
 acft=aircraft(sld, elems=[wng], Sref=b*croot*(1+taper)/2)
 wng.patchcompose(ydisc=30)
 acft.edit_parameters({'a':a, 'Uinf':Uinf, 'q':q})
-acft.addwake(wakedisc=20, offset=5.0, strategy=lambda x:x)
+acft.addwake(wakedisc=30, offset=10.0)#, strategy=lambda x:x)
 
 '''sld.plotnormals(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6], factor=0.1)
 sld.plotnormals(xlim=[-0.2, 0.2], ylim=[-0.8, -0.4], zlim=[-0.2, 0.2], factor=0.1)'''
 acft.eulersolve(wakeiter=1)
 acft.forces_report()
 acft.stabreport()
-'''plot_Cps(sld, elems=[wng])
+plot_Cps(sld, elems=[wng])
 plot_Cls(sld, wings=[wng])
 plot_Cds(sld, wings=[wng])
 plot_Cms(sld, wings=[wng])
 plot_gammas(sld, wings=[wng])
-sld.plotgeometry(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6], velfield=False)'''
+sld.plotgeometry(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6], velfield=False)
 
 acft.design_derivatives()

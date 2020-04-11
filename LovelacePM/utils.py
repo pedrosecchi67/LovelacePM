@@ -9,8 +9,6 @@ from scipy.interpolate import CubicSpline
 import time as tm
 import os
 
-import toolkit
-
 def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
     remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False, sweep=0.0):
     ordir=os.getcwd()
