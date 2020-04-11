@@ -12,7 +12,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="LovelacePM",
-    version="0.1.7",
+    version="0.1.8",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
@@ -27,6 +27,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'scipy', 'matplotlib', 'LoveUpdate'],
+    install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'LoveUpdate'],
     python_requires='>=3.6',
 )
