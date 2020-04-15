@@ -104,7 +104,6 @@ plt.legend()
 plt.show()'''
 acft.plotgeometry(velfield=False)
 #sld.plotgeometry(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2])
-print('npanels: ', sld.npanels)
 plot_Cps(sld, elems=[wing_left, wing_right])
 plot_Cls(sld, wings=[wing_left, wing_right])
 plot_Cds(sld, wings=[wing_left, wing_right])

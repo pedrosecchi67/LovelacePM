@@ -48,25 +48,30 @@ class WakePanel:
         self.v=np.zeros(3)
 
 class Solid:
-    def __init__(self, sldlist=[], wraparounds=[]): #solid data type
-        self.panels=[]
-        self.lines=[]
-        self.addto=[]
-        self.wakestrips=[]
-        self.wakeline_inds=set([])
-        self.wakelines=set([])
-        self.problematic=[]
-        self.npanels=0
-        self.nlines=0
-        self.nwake=0 #number of wake panels
-        self.solavailable=False
-        if len(wraparounds)==0:
-            wraparounds=[[]]*len(sldlist)
-        sldcnt=0
-        for sld in sldlist: #define first patches (without their interconnections)
-            wraps=wraparounds[sldcnt]
-            self.addpatch(sld, wraps=wraps)
-            sldcnt+=1
+    def __init__(self, sldlist=[], wraparounds=[], full_parallel=False): #solid data type
+        if (not full_parallel) and mp.current_process().name != 'MainProcess':
+            self.runme=False
+        else:
+            self.runme=True
+            self.full_parallel=full_parallel
+            self.panels=[]
+            self.lines=[]
+            self.addto=[]
+            self.wakestrips=[]
+            self.wakeline_inds=set([])
+            self.wakelines=set([])
+            self.problematic=[]
+            self.npanels=0
+            self.nlines=0
+            self.nwake=0 #number of wake panels
+            self.solavailable=False
+            if len(wraparounds)==0:
+                wraparounds=[[]]*len(sldlist)
+            sldcnt=0
+            for sld in sldlist: #define first patches (without their interconnections)
+                wraps=wraparounds[sldcnt]
+                self.addpatch(sld, wraps=wraps)
+                sldcnt+=1
     def addpatch(self, sld, wraps=[], prevlines={}, invlats=[], tolerance=0.00005): #add panel based on point grid (list of lists)
         # returns: arrays of, respectively, horizontal and vertical line indexes; panel indexes list of lists;
         # point grid inserted as input, for external reference from high-end functions
@@ -402,16 +407,22 @@ class Solid:
         queue2=mp.Queue()
         for i in range(len(calclims)):
             self.addorder(queue1, colmat, ind1=calclims[i][0], ind2=calclims[i][1])
-        processes=[]
-        for i in range(ncpus):
-            processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
-        for p in processes:
-            p.start()
+        if not self.full_parallel:
+            processes=[]
+            for i in range(ncpus):
+                processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
+            for p in processes:
+                p.start()
+        else:
+            print('NOTICE: running LovelacePM without parallel AICM calculation')
+            for i in range(ncpus):
+                subprocess_genaicm(queue1, queue2)
         ordresults=[]
         for i in range(ncpus):
             ordresults+=[queue2.get()]
-        for p in processes:
-            p.join()
+        if not self.full_parallel:
+            for p in processes:
+                p.join()
         self.aicm3_line=np.zeros((3, self.npanels, self.nlines))
         for ordresult in ordresults:
             self.aicm3_line[:, :, ordresult[0]:ordresult[1]]=ordresult[2]
@@ -668,75 +679,78 @@ class Solid:
         self.aicm3[2, :, :]=PG_apv[2, 0]*self.aicm3[0, :, :]+PG_apv[2, 1]*self.aicm3[1, :, :]+PG_apv[2, 2]*self.aicm3[2, :, :]
     def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
         #plot geometry and local velocity vectors, either with or without wake panels
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-        for i in range(self.nlines):
-            ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
-        for i in self.problematic:
-            ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
-        if self.solavailable and velfield:
-            ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-                [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
-                    [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \
-                        [(self.vbar[i, 2]+self.delphi[i, 2])*factor for i in range(self.npanels)])
-        if len(xlim)!=0:
-            ax.set_xlim3d(xlim[0], xlim[1])
-        if len(ylim)!=0:
-            ax.set_ylim3d(ylim[0], ylim[1])
-        if len(zlim)!=0:
-            ax.set_zlim3d(zlim[0], zlim[1])
-        ax.view_init(azim=-135, elev=30)
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
+        if self.runme:
+            fig=plt.figure()
+            ax=plt.axes(projection='3d')
+            for i in range(self.nlines):
+                ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
+            for i in self.problematic:
+                ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
+            if self.solavailable and velfield:
+                ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+                    [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
+                        [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \
+                            [(self.vbar[i, 2]+self.delphi[i, 2])*factor for i in range(self.npanels)])
+            if len(xlim)!=0:
+                ax.set_xlim3d(xlim[0], xlim[1])
+            if len(ylim)!=0:
+                ax.set_ylim3d(ylim[0], ylim[1])
+            if len(zlim)!=0:
+                ax.set_zlim3d(zlim[0], zlim[1])
+            ax.view_init(azim=-135, elev=30)
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.show()
     def plotnormals(self, xlim=[], ylim=[], zlim=[], factor=1.0):
-        #plot normal vectors of panels. Function essentially produced for geometry gen. debugging
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-        for i in range(self.nlines):
-            ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
-        ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-            [p.colpoint[2] for p in self.panels], [p.nvector[0]*factor for p in self.panels], \
-                [p.nvector[1]*factor for p in self.panels], \
-                    [p.nvector[2]*factor for p in self.panels])
-        '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-            [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
-                [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
-                    [self.vbar[i, 2]+self.delphi[i, 2] for i in range(self.npanels)])'''
-        if len(xlim)!=0:
-            ax.set_xlim3d(xlim[0], xlim[1])
-        if len(ylim)!=0:
-            ax.set_ylim3d(ylim[0], ylim[1])
-        if len(zlim)!=0:
-            ax.set_zlim3d(zlim[0], zlim[1])
-        ax.view_init(azim=-135, elev=30)
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
+        if self.runme:
+            #plot normal vectors of panels. Function essentially produced for geometry gen. debugging
+            fig=plt.figure()
+            ax=plt.axes(projection='3d')
+            for i in range(self.nlines):
+                ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
+            ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+                [p.colpoint[2] for p in self.panels], [p.nvector[0]*factor for p in self.panels], \
+                    [p.nvector[1]*factor for p in self.panels], \
+                        [p.nvector[2]*factor for p in self.panels])
+            '''ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
+                [p.colpoint[2] for p in self.panels], [self.vbar[i, 0]+self.delphi[i, 0] for i in range(self.npanels)], \
+                    [self.vbar[i, 1]+self.delphi[i, 1] for i in range(self.npanels)], \
+                        [self.vbar[i, 2]+self.delphi[i, 2] for i in range(self.npanels)])'''
+            if len(xlim)!=0:
+                ax.set_xlim3d(xlim[0], xlim[1])
+            if len(ylim)!=0:
+                ax.set_ylim3d(ylim[0], ylim[1])
+            if len(zlim)!=0:
+                ax.set_zlim3d(zlim[0], zlim[1])
+            ax.view_init(azim=-135, elev=30)
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.show()
     def eulersolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
         wakeiter=0, tolerance=1e-5):
-        if echo:
-            print('========Euler solution=======')
-            print(self.npanels, ' panels, ', self.nlines, ' lines')
-        t=tm.time()
-        self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
-        self.gennvv()
-        self.PG_apply(beta, a, b)
-        if echo:
-            print('Pre-processing: '+str(tm.time()-t)+' s')
-        t=tm.time()
-        self.genaicm()
-        self.gen_selfinf_mat()
-        if echo:
-            print('AIC matrix generation: '+str(tm.time()-t)+' s')
-        t=tm.time()
-        self.PG_remove(beta, a, b)
-        self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
-        self.calcpress(Uinf=Uinf, M=M, gamma=gamma)
-        self.calcforces()
-        if echo:
-            print('Solution and post-processing: '+str(tm.time()-t)+' s')
-            print('=============================')
+        if self.runme:
+            if echo:
+                print('========Euler solution=======')
+                print(self.npanels, ' panels, ', self.nlines, ' lines')
+            t=tm.time()
+            self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
+            self.gennvv()
+            self.PG_apply(beta, a, b)
+            if echo:
+                print('Pre-processing: '+str(tm.time()-t)+' s')
+            t=tm.time()
+            self.genaicm()
+            self.gen_selfinf_mat()
+            if echo:
+                print('AIC matrix generation: '+str(tm.time()-t)+' s')
+            t=tm.time()
+            self.PG_remove(beta, a, b)
+            self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
+            self.calcpress(Uinf=Uinf, M=M, gamma=gamma)
+            self.calcforces()
+            if echo:
+                print('Solution and post-processing: '+str(tm.time()-t)+' s')
+                print('=============================')
 
 '''sld=Solid(sldlist=[np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
 #sld.plotgeometry()

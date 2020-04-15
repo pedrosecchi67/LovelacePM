@@ -105,22 +105,23 @@ class body: #body definition class for center definition to obtain polar cooridi
         self.acft=acft #define aircraft structure related to instance
     def __init__(self, sld, sections=[], tolerance=0.00005):
         self.sld=sld
-        self.tolerance=tolerance
-        self.sections=sections
-        self.sect_xpos=np.array([sect.center[0] for sect in sections])
-        centerfunc_y=sinterp.interp1d(self.sect_xpos, [sect.center[1] for sect in sections])
-        centerfunc_z=sinterp.interp1d(self.sect_xpos, [sect.center[2] for sect in sections])
-        self.center=lambda x: np.vstack((x, centerfunc_y(x), centerfunc_z(x)))
-        self.body_panels=[]
-        self.last_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='previous')
-        self.next_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='next')
-        self.y_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.y_expand for sect in self.sections]))
-        self.z_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.z_expand for sect in self.sections]))
-        for i in range(len(self.sections)-1):
-            for j in range(np.size(self.sections[i].coords, 0)-1):
-                self.body_panels+=[body_panel(self.sections[i].coords[j, :], \
-                    self.sections[i+1].coords[j, :], self.sections[i+1].coords[j+1, :], \
-                    self.sections[i].coords[j+1, :], tolerance=tolerance)]
+        if self.sld.runme:
+            self.tolerance=tolerance
+            self.sections=sections
+            self.sect_xpos=np.array([sect.center[0] for sect in sections])
+            centerfunc_y=sinterp.interp1d(self.sect_xpos, [sect.center[1] for sect in sections])
+            centerfunc_z=sinterp.interp1d(self.sect_xpos, [sect.center[2] for sect in sections])
+            self.center=lambda x: np.vstack((x, centerfunc_y(x), centerfunc_z(x)))
+            self.body_panels=[]
+            self.last_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='previous')
+            self.next_x=sinterp.interp1d(self.sect_xpos, self.sect_xpos, kind='next')
+            self.y_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.y_expand for sect in self.sections]))
+            self.z_expand_rule=sinterp.interp1d(self.sect_xpos, np.array([sect.z_expand for sect in self.sections]))
+            for i in range(len(self.sections)-1):
+                for j in range(np.size(self.sections[i].coords, 0)-1):
+                    self.body_panels+=[body_panel(self.sections[i].coords[j, :], \
+                        self.sections[i+1].coords[j, :], self.sections[i+1].coords[j+1, :], \
+                        self.sections[i].coords[j+1, :], tolerance=tolerance)]
     def find_body_intersect(self, p, u, tolerance=0.00005):
         #return abutment point for wing called function to push out wing points
         return pytoolkit.get_panel_contact(p, u, np.array([list(p.center) for p in self.body_panels]), \
@@ -128,23 +129,24 @@ class body: #body definition class for center definition to obtain polar cooridi
                 np.array([list(p.points) for p in self.body_panels]), tolerance)
     def plot_input(self, fig=None, ax=None, show=False, xlim=[], \
         ylim=[], zlim=[], colour='gray'): #plot input geometry data
-        if fig==None:
-            fig=plt.figure()
-        if ax==None:
-            plt.axes(projection='3d')
-        
-        order=np.array([0, 1, 2, 3, 0])
-        for p in self.body_panels:
-            ax.plot3D(p.points[0, order], p.points[1, order], p.points[2, order], colour)
+        if self.sld.runme:
+            if fig==None:
+                fig=plt.figure()
+            if ax==None:
+                plt.axes(projection='3d')
+            
+            order=np.array([0, 1, 2, 3, 0])
+            for p in self.body_panels:
+                ax.plot3D(p.points[0, order], p.points[1, order], p.points[2, order], colour)
 
-        if len(xlim)!=0:
-            ax.set_xlim3d(xlim[0], xlim[1])
-        if len(ylim)!=0:
-            ax.set_ylim3d(ylim[0], ylim[1])
-        if len(zlim)!=0:
-            ax.set_zlim3d(zlim[0], zlim[1])
-        if show:
-            plt.show()
+            if len(xlim)!=0:
+                ax.set_xlim3d(xlim[0], xlim[1])
+            if len(ylim)!=0:
+                ax.set_ylim3d(ylim[0], ylim[1])
+            if len(zlim)!=0:
+                ax.set_zlim3d(zlim[0], zlim[1])
+            if show:
+                plt.show()
     def surfinterp(self, th, x):
         #function to generate linear interpolations along the section surface
         lastsect=0
@@ -346,85 +348,88 @@ class body: #body definition class for center definition to obtain polar cooridi
         return thx(xspacing)
     def patchcompose(self, leftqueue=[], rightqueue=[], upqueue=[], lowqueue=[], xstrategy=lambda x: x, xdisc=100, \
         thstrategy=lambda x: x, thdisc_upleft=20, thdisc_upright=20, thdisc_downleft=20, thdisc_downright=20, tolerance=5e-5):
-        #function to generate patch to add panels belonging to fuselage. Queues designate abutted surfaces at a certain point
-        #in the surface (e. g. upqueue to vertical fin, leftqueue to left wing (wing 1)...)
-        #must be ran AFTER abutted wings's 'patchcompose's.
-        lnlines, lxdisc, rnlines, rxdisc, unlines, uxdisc, dnlines, dxdisc=self.side_separate(leftqueue=leftqueue, \
-            rightqueue=rightqueue, upqueue=upqueue, lowqueue=lowqueue, xstrategy=xstrategy, xdisc=xdisc)
+        if self.sld.runme:
+            #function to generate patch to add panels belonging to fuselage. Queues designate abutted surfaces at a certain point
+            #in the surface (e. g. upqueue to vertical fin, leftqueue to left wing (wing 1)...)
+            #must be ran AFTER abutted wings's 'patchcompose's.
+            lnlines, lxdisc, rnlines, rxdisc, unlines, uxdisc, dnlines, dxdisc=self.side_separate(leftqueue=leftqueue, \
+                rightqueue=rightqueue, upqueue=upqueue, lowqueue=lowqueue, xstrategy=xstrategy, xdisc=xdisc)
 
-        #left-side, 0.0 to -pi/2 patch
-        thleft=self.theta_queueident(leftqueue, xspacing=lxdisc, intra=False, queueident='l', right=True)
-        thright=self.theta_queueident(upqueue, xspacing=uxdisc, intra=True, right=True, queueident='u')
-        ptpatch=[]
-        for i in range(len(lxdisc)):
-            ptpatch+=[self.line_surfinterp(uxdisc[i], lxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upleft)]
-        horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(leftqueue, lnlines, prevlateral=[], intra=False, right=True), \
-            'right':prevline_organize(upqueue, unlines, prevlateral=[], intra=True, right=True)}, tolerance=tolerance)
-        uplat=[linerow[0] for linerow in vertlines]
-        self.paninds=[]
-        for panlist in paninds:
-            self.paninds+=panlist
-        
-        #left side, -pi/2 to -pi patch
-        thleft=self.theta_queueident(lowqueue, xspacing=dxdisc, intra=True, queueident='d', right=False)
-        thright=self.theta_queueident(leftqueue, xspacing=lxdisc, intra=True, right=True, queueident='l')
-        ptpatch=[]
-        for i in range(len(lxdisc)):
-            ptpatch+=[self.line_surfinterp(lxdisc[i], dxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downleft)]
-        horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(lowqueue, dnlines, prevlateral=[], intra=True, right=False), \
-            'right':prevline_organize(leftqueue, lnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=True, right=True)}, tolerance=tolerance)
-        for panlist in paninds:
-            self.paninds+=panlist
-        
-        #right side, pi to pi/2 patch
-        thleft=self.theta_queueident(rightqueue, xspacing=rxdisc, intra=True, queueident='r', right=False)
-        thright=self.theta_queueident(lowqueue, xspacing=dxdisc, intra=False, right=False, queueident='d')
-        ptpatch=[]
-        for i in range(len(lxdisc)):
-            ptpatch+=[self.line_surfinterp(dxdisc[i], rxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downright)]
-        horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(rightqueue, rnlines, prevlateral=[], intra=True, right=False), \
-            'right':prevline_organize(lowqueue, dnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
-        for panlist in paninds:
-            self.paninds+=panlist
-        
-        #right side, pi/2 to 0.0 patch
-        thleft=self.theta_queueident(upqueue, xspacing=uxdisc, intra=False, queueident='u', right=True)
-        thright=self.theta_queueident(rightqueue, xspacing=rxdisc, intra=False, right=False, queueident='r')
-        ptpatch=[]
-        for i in range(len(lxdisc)):
-            ptpatch+=[self.line_surfinterp(rxdisc[i], uxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upright)]
-        horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(upqueue, unlines, prevlateral=uplat, intra=False, right=True), \
-            'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
-        for panlist in paninds:
-            self.paninds+=panlist
+            #left-side, 0.0 to -pi/2 patch
+            thleft=self.theta_queueident(leftqueue, xspacing=lxdisc, intra=False, queueident='l', right=True)
+            thright=self.theta_queueident(upqueue, xspacing=uxdisc, intra=True, right=True, queueident='u')
+            ptpatch=[]
+            for i in range(len(lxdisc)):
+                ptpatch+=[self.line_surfinterp(uxdisc[i], lxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upleft)]
+            horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(leftqueue, lnlines, prevlateral=[], intra=False, right=True), \
+                'right':prevline_organize(upqueue, unlines, prevlateral=[], intra=True, right=True)}, tolerance=tolerance)
+            uplat=[linerow[0] for linerow in vertlines]
+            self.paninds=[]
+            for panlist in paninds:
+                self.paninds+=panlist
+            
+            #left side, -pi/2 to -pi patch
+            thleft=self.theta_queueident(lowqueue, xspacing=dxdisc, intra=True, queueident='d', right=False)
+            thright=self.theta_queueident(leftqueue, xspacing=lxdisc, intra=True, right=True, queueident='l')
+            ptpatch=[]
+            for i in range(len(lxdisc)):
+                ptpatch+=[self.line_surfinterp(lxdisc[i], dxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downleft)]
+            horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(lowqueue, dnlines, prevlateral=[], intra=True, right=False), \
+                'right':prevline_organize(leftqueue, lnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=True, right=True)}, tolerance=tolerance)
+            for panlist in paninds:
+                self.paninds+=panlist
+            
+            #right side, pi to pi/2 patch
+            thleft=self.theta_queueident(rightqueue, xspacing=rxdisc, intra=True, queueident='r', right=False)
+            thright=self.theta_queueident(lowqueue, xspacing=dxdisc, intra=False, right=False, queueident='d')
+            ptpatch=[]
+            for i in range(len(lxdisc)):
+                ptpatch+=[self.line_surfinterp(dxdisc[i], rxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_downright)]
+            horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(rightqueue, rnlines, prevlateral=[], intra=True, right=False), \
+                'right':prevline_organize(lowqueue, dnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
+            for panlist in paninds:
+                self.paninds+=panlist
+            
+            #right side, pi/2 to 0.0 patch
+            thleft=self.theta_queueident(upqueue, xspacing=uxdisc, intra=False, queueident='u', right=True)
+            thright=self.theta_queueident(rightqueue, xspacing=rxdisc, intra=False, right=False, queueident='r')
+            ptpatch=[]
+            for i in range(len(lxdisc)):
+                ptpatch+=[self.line_surfinterp(rxdisc[i], uxdisc[i], thright[i], thleft[i], xstrategy=xstrategy, thstrategy=thstrategy, disc=thdisc_upright)]
+            horzlines, vertlines, paninds, sld=self.sld.addpatch(ptpatch, prevlines={'left':prevline_organize(upqueue, unlines, prevlateral=uplat, intra=False, right=True), \
+                'right':prevline_organize(rightqueue, rnlines, prevlateral=[linerow[-1] for linerow in vertlines], intra=False, right=False)}, tolerance=tolerance)
+            for panlist in paninds:
+                self.paninds+=panlist
     def apply_eqflatplate(self, rho=1.225, Uinf=1.0, mu=1.72*10e-5, turbulent_criterion=Re2e5, Cf_l_rule=Blausius_Cf_l, Cf_t_rule=Prandtl_1_7th):
         #all rule parameters should be provided as a function of the local Reynolds number
-        for p in self.paninds:
-            local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/mu
-            if turbulent_criterion(local_Re):
-                self.sld.Cfs[p]=Cf_t_rule(local_Re)
-            else:
-                self.sld.Cfs[p]=Cf_l_rule(local_Re)
+        if self.sld.runme:
+            for p in self.paninds:
+                local_Re=((self.sld.panels[p].colpoint[0]-self.sect_xpos[0])*rho*Uinf)/mu
+                if turbulent_criterion(local_Re):
+                    self.sld.Cfs[p]=Cf_t_rule(local_Re)
+                else:
+                    self.sld.Cfs[p]=Cf_l_rule(local_Re)
     def bodypanel_plotnormals(self, xlim=[], ylim=[], zlim=[], factor=1.0):
         #plot normal vectors of body panels. Function essentially produced for geometry gen. debugging
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-        for i in range(len(self.body_panels)):
-            for j in range(4):
-                ax.plot3D([self.body_panels[i].points[0, j], self.body_panels[i].points[0, (j+1)%4]], \
-                    [self.body_panels[i].points[1, j], self.body_panels[i].points[1, (j+1)%4]], \
-                        [self.body_panels[i].points[2, j], self.body_panels[i].points[2, (j+1)%4]], 'gray')
-            ax.quiver(self.body_panels[i].center[0], self.body_panels[i].center[1], self.body_panels[i].center[2], \
-                self.body_panels[i].nvector[0]*factor, self.body_panels[i].nvector[1]*factor, self.body_panels[i].nvector[2]*factor)
-        if len(xlim)!=0:
-            ax.set_xlim3d(xlim[0], xlim[1])
-        if len(ylim)!=0:
-            ax.set_ylim3d(ylim[0], ylim[1])
-        if len(zlim)!=0:
-            ax.set_zlim3d(zlim[0], zlim[1])
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.show()
+        if self.sld.runme:
+            fig=plt.figure()
+            ax=plt.axes(projection='3d')
+            for i in range(len(self.body_panels)):
+                for j in range(4):
+                    ax.plot3D([self.body_panels[i].points[0, j], self.body_panels[i].points[0, (j+1)%4]], \
+                        [self.body_panels[i].points[1, j], self.body_panels[i].points[1, (j+1)%4]], \
+                            [self.body_panels[i].points[2, j], self.body_panels[i].points[2, (j+1)%4]], 'gray')
+                ax.quiver(self.body_panels[i].center[0], self.body_panels[i].center[1], self.body_panels[i].center[2], \
+                    self.body_panels[i].nvector[0]*factor, self.body_panels[i].nvector[1]*factor, self.body_panels[i].nvector[2]*factor)
+            if len(xlim)!=0:
+                ax.set_xlim3d(xlim[0], xlim[1])
+            if len(ylim)!=0:
+                ax.set_ylim3d(ylim[0], ylim[1])
+            if len(zlim)!=0:
+                ax.set_zlim3d(zlim[0], zlim[1])
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.show()
 
 def circdefsect(y_expand=1.0, z_expand=1.0, R=1.0, center=np.array([0.0, 0.0, 0.0]), cubic=True, disc=360): #generate circular defsect based on 
     #discretization necessities
