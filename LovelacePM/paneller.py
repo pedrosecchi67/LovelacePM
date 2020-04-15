@@ -215,9 +215,10 @@ class Solid:
         for lind in indsup:
             self.wakeline_inds.add(abs(lind)-1)
         if refdown!=-1:
-            te_linind=self.panels[refdown].lines.pop(indown)
-            self.panels[refdown].wakelines+=[-l for l in indsup]
-            self.panels[refdown].TE_line=te_linind
+            if indown<len(self.panels[refdown].lines):
+                te_linind=self.panels[refdown].lines.pop(indown)
+                self.panels[refdown].wakelines+=[-l for l in indsup]
+                self.panels[refdown].TE_line=te_linind
         for i in range(disc):
             center=(self.line_midpoint(rightlines[i].ind)+self.line_midpoint(leftlines[disc-i-1].ind))/2
             self.wakestrips[-1]+=[WakePanel(leftlines[disc-i-1], rightlines[i], center)]

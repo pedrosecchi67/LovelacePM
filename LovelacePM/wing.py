@@ -28,6 +28,7 @@ class wing_section: #class to define wing section based on airfoil info
                 gamma=radians(gamma), c=c, xpos=CA_position[0], ypos=CA_position[1], zpos=CA_position[2])
         self.inverted=inverse
         self.correction=correction
+        self.xdisc=int(np.size(self.points, axis=0)/2)
         if self.hascorrection():
             self.getcorrection(Re=Re)
     def hascorrection(self): #check whether or not external polar is fed to post-processor
@@ -55,7 +56,8 @@ class wing_section: #class to define wing section based on airfoil info
         self.control_ptinds=[]
         for i in range(len(self.controls)):
             self.control_ptinds+=[[]]
-            inds=np.argwhere(self.points[:, 0]>control_axpercs[i]*self.c+self.CA_position[0]-self.c/4)
+            inds=np.argwhere(self.points[0:self.xdisc, 0]>control_axpercs[i]*self.c+self.CA_position[0]-self.c/4)
+            inds=np.vstack((inds, np.size(self.points, axis=0)-1-inds))
             for ptind in [index[0] for index in inds]:
                 self.control_ptinds[-1]+=[ptind]
         return list(range(inlen, len(self.controls)))
@@ -94,7 +96,8 @@ class wing_quadrant: #wing region between two airfoil sections
         if self.sld.runme:
             self.sect1=sect1
             self.sect2=sect2
-            self.wakecomb=[]
+            self.wakecombs=[]
+            self.wakeinds=[]
             self.panstrips_extra=[]
             self.panstrips_intra=[]
             self.acft=None
@@ -228,6 +231,7 @@ class wing_quadrant: #wing region between two airfoil sections
             
             #wake info
             self.wakecombs=[]
+            self.wakeinds=[]
 
             #update prevlines to not include points belonging to controls
             controlpts1=[]
@@ -301,6 +305,19 @@ class wing_quadrant: #wing region between two airfoil sections
             self.intraleft_lines=[vertlines[i][0] for i in range(len(vertlines))]
             self.intraleft_points=[points[i][0] for i in range(len(points))]
 
+            #wake info
+            for i in range(len(TE_extra)):
+                self.wakecombs+=[[TE_extra[i], TE_intra[i]]]
+                self.wakeinds+=[[0, 0]]
+
+            #left flap wake segment panel indexes
+            #leftcontwake=[]
+            #right flap wake segment panel indexes
+            #rightcontwake=[]
+            #same for wakeind argument in Solid.genwakepanels() method
+            #leftwakeinds=[]
+            #rightwakeinds=[]
+
             #clean points and lines list from control region
             if self.hascontrol():
                 for i in range(len(self.extraleft_points)):
@@ -318,26 +335,41 @@ class wing_quadrant: #wing region between two airfoil sections
                 
                 if self.sect1.hasdeflection():
                     for l in range(len(self.extraleft_lines)):
-                        if l in controlpts1 or l-1 in controlpts1:
+                        if l in controlpts1 or l+1 in controlpts1:
                             self.sld.panels[extra_paninds[l][-1]].nocirc_enforce(self.extraleft_lines[l]) #avoid excessive circulation from open control surfaces
                             self.extraleft_lines[l]=-2
+                            #leftcontwake+=[[extra_paninds[l][-1]]]
+                            #leftwakeinds+=[[1]]
+                            #self.sld.problematic+=[abs(self.sld.panels[extra_paninds[l][-1]].lines[1])-1]
+                    #n=0
                     for l in range(len(self.intraleft_lines)):
                         if sect1_xdisc-1-l in controlpts1 or sect1_xdisc-2-l in controlpts2:
                             self.sld.panels[intra_paninds[l][0]].nocirc_enforce(self.intraleft_lines[l]) #avoid excessive circulation from open control surfaces
                             self.intraleft_lines[l]=-2
+                            #leftcontwake[n]+=[intra_paninds[l][0]]
+                            #leftwakeinds[n]+=[3]
+                            #n+=1
                 if self.sect2.hasdeflection():
                     for l in range(len(self.extraright_lines)):
-                        if l in controlpts2 or l-1 in controlpts2:
+                        if l in controlpts2 or l+1 in controlpts2:
                             self.sld.panels[extra_paninds[l][0]].nocirc_enforce(self.extraright_lines[l]) #avoid excessive circulation from open control surfaces
                             self.extraright_lines[l]=-2
+                            #rightcontwake+=[[extra_paninds[l][0]]]
+                            #rightwakeinds+=[[3]]
+                    #n=0
                     for l in range(len(self.intraright_lines)):
                         if sect2_xdisc-1-l in controlpts2 or sect2_xdisc-2-l in controlpts2:
                             self.sld.panels[intra_paninds[l][-1]].nocirc_enforce(self.intraright_lines[l]) #avoid excessive circulation from open control surfaces
                             self.intraright_lines[l]=-2
+                            #rightcontwake[n]+=[intra_paninds[l][-1]]
+                            #rightwakeinds[n]+=[1]
+                            #n+=1
+            #leftcontwake.reverse()
+            #leftwakeinds.reverse()
 
-            #wake info
-            for i in range(len(TE_extra)):
-                self.wakecombs+=[[TE_extra[i], TE_intra[i]]]
+            #add flap wake segments
+            #self.wakecombs=leftcontwake+self.wakecombs+rightcontwake
+            #self.wakeinds=leftwakeinds+self.wakeinds+rightwakeinds
             
             #closing tips
             if closedl:
@@ -678,7 +710,10 @@ class wing:
         if self.sld.runme:
             prevleft=[]
             for quad in self.wingquads:
-                _, prevleft=quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=[[0, 0]], a=a, b=b, offset=offset, disc=wakedisc, strategy=strategy, prevleft=prevleft, leftinvert=True)
+                if quad.hascontrol():
+                    if quad.sect1.hasdeflection():
+                        prevleft=[]
+                _, prevleft=quad.sld.genwakepanels(wakecombs=quad.wakecombs, wakeinds=quad.wakeinds, a=a, b=b, offset=offset, disc=wakedisc, strategy=strategy, prevleft=prevleft, leftinvert=True)
     def hascorrection(self):
         return all([wngqd.hascorrection() for wngqd in self.wingquads])
     def calc_corrected_forces(self): #compose correction forces from each wing quadrant
