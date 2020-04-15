@@ -20,6 +20,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/pedrosecchi67/LovelacePM",
     packages=['LovelacePM'],
+    package_data={'':['*.dat']},
     #libraries=libraries,
     #ext_modules=extensions,
     classifiers=[

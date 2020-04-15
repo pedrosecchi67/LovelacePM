@@ -406,7 +406,6 @@ class Solid:
         for i in range(ncpus):
             processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
         for p in processes:
-            #p.daemon=True
             p.start()
         ordresults=[]
         for i in range(ncpus):
