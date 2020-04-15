@@ -167,9 +167,10 @@ plotnormals
 eulersolve
 '''
 
-paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[]): instantiate solid, adding the first patches as their matrixes of point arrays are inserted in list sldlist, and their wrapping directions 
-are in the list of lists wraparounds. Ex. sldlist=[mat], wraparounds=[[1]] indicates a patch mat is to be first inserted, with the lines in the first row of mat
-being considered the same as those of the last row. wraparounds=[[0]] would do the same with first and last columns in \'mat\' matrix'''
+paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[], full_parallel=False): instantiate solid, adding the first patches as their matrixes of point arrays are inserted in list sldlist, 
+and their wrapping directions are in the list of lists wraparounds. Ex. sldlist=[mat], wraparounds=[[1]] indicates a patch mat is to be first inserted, with the lines in the first row of mat
+being considered the same as those of the last row. wraparounds=[[0]] would do the same with first and last columns in \'mat\' matrix.
+If flag full_parallel is selected, parallel execution of aicm calculations will be held so as to stop recursive multiprocessing on windows. This is necessary when parallelizing the whole analysis operation'''
 paneller.Solid.addpatch.__doc__='''addpatch(sld, wraps=[], prevlines={}, invlats=[], tolerance=5e-5): add patch with point array matrix (list of lists) sld. prevlines indicates indexes of previously
 created lines to be used as edges for points in the first (key \'low\') or last (key \'up\') rows or columns (\'right\' and \'left\' keys).
 invlats contains the previously cited keys for laterals which should have its lines inverted when being added to panels. wraps contains wraparound commands as axis indexes, as described in reference
@@ -915,12 +916,12 @@ dump
 create_functions
 __call__
 '''
-xfoil_visc.polar_correction.__init__.__doc__='''__init__(name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True):
+xfoil_visc.polar_correction.__init__.__doc__='''__init__(name='n4412', ext_append=True, aseq=[-10.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True, full_parallel=False):
 create polar correction for named airfoil, appending extension .dat for its file name if ext_append is True, between AOAs aseq[0] and aseq[1] with AOA step aseq[2]. Linear interpolation
 for Reynolds number extrapolation (check reference for xfoil_visc.polar_correction class for more info) is done between Reynolds numbers Re_low and Re_high. Mach number is set to kwarg
 Mach. Maximum iteration for viscous-inviscid coupling is set to kwarg iter. If cubic is True, polars will extrapolate data for AOAs using a cubic spline. A linear interpolation will be used
 otherwise. flap, if present, defines a length=3 list with, respectively, the x-axis chord percentage for the flap\'s axis, the thickness percentage for the
-given axis and its deflection in degrees.'''
+given axis and its deflection in degrees. A safety flag against Windows recursive multiprocess calls is set when full_parallel flag is triggered'''
 xfoil_visc.polar_correction.dump.__doc__='''dump(poldir='', polname='n4412', ext_append=True, echo=True): prints polar in .plr format (appending extension if ext_append is True) to file polname in directory
 poldir (or pwd if len(poldir)==0). Data is printed to stdio as dumped into file if echo is True'''
 xfoil_visc.polar_correction.create_functions.__doc__='''create_functions(cubic=True): creates cubic (or linear if cubic==False) interpolations for variables:

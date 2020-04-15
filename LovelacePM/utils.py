@@ -13,10 +13,12 @@ def read_afl(afl, afldir='', ext_append=False, header_lines=1, disc=0, strategy=
     remove_TE_gap=False, extra_intra=False, incidence=0.0, inverse=False, closed=False, sweep=0.0):
     ordir=os.getcwd()
     if len(afldir)==0:
-	    os.chdir(ordir)
+	    afldir=ordir
         #os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    else:
-	    os.chdir(afldir)
+    os.chdir(afldir)
+    if not os.path.exists(afl+('.dat' if ext_append else '')):
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        print('WARNING: airfoil not found in local directory. Switching to package directory for default airfoils instead')
     #read arfoil data points from Selig format file
     if ext_append:
         infile=open(afl+'.dat', 'r')
