@@ -355,6 +355,10 @@ class aircraft: #class to ease certain case studies for full aircraft
         if self.sld.runme:
             self.sld.eulersolve(target=np.array([]), a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, \
                 r=self.r*2*self.Uinf/self.bref, damper=damper, Uinf=self.Uinf, echo=True, M=self.M, gamma=self.gamma, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
+    def resolve(self, echo=True, damper=0.0, tolerance=1e-5, wakeiter=0):
+        if self.sld.runme:
+            self.sld.resolve(target=np.array([]), a=self.a, b=self.b, p=self.p*2*self.Uinf/self.bref, q=self.q*2*self.Uinf/self.cref, \
+                r=self.r*2*self.Uinf/self.bref, damper=damper, Uinf=self.Uinf, echo=True, M=self.M, gamma=self.gamma, tolerance=tolerance, wakeiter=wakeiter, beta=sqrt(1.0-self.M**2))
     def forces_report(self):
         if self.sld.runme:
             print('========Total Forces Report========')
