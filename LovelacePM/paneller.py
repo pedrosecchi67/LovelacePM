@@ -541,7 +541,18 @@ class Solid:
             self.solution_line=self.panline_matrix@self.solution
             tsol=tm.time()
             print('%14s %3d | %5f %5f %5f' % ('Wake teration', i, tvel-t0, trol-tvel, tsol-trol))
-            
+    def wake_aicm_recalc(self):
+        wakelininds=np.array(list(self.wakeline_inds))
+        colmat=np.zeros((self.npanels, 3))
+        nvectmat=np.zeros((self.npanels, 3))
+        for i in range(len(self.panels)):
+            colmat[i, :]=self.panels[i].colpoint
+            nvectmat[i, :]=self.panels[i].nvector
+        self.aicm3_line[:, :, wakelininds]=pytoolkit.aicm_lines_recalc(wakelininds, self.lines, colmat)
+        for j in range(3):
+            self.aicm3[j, :, :]=self.aicm3_line[j, :, :]@self.panline_matrix
+        self.aicm=pytoolkit.aicm_norm_conv(self.aicm3, nvectmat)
+    def velcompute(self):
         for i in range(3):
             self.delphi[:, i]=self.aicm3[i, :, :]@self.solution #compute local velocity due to disturbance field
         self.gen_selfinf()
@@ -587,6 +598,9 @@ class Solid:
         for strip in self.wakestrips:
             for p in strip:
                 p.v+=pytoolkit.get_field_influence(self.lines, self.solution_line, p.center, tolerance=tolerance)
+    def wake_redef(self, Uinf=1.0, a=0.0, b=0.0): #redefine wake positions based on new freestream parameters
+        self.gen_wake_farfield(Uinf=Uinf, a=a, b=b, p=0.0, q=0.0, r=0.0)
+        self.wake_rollup()
     def wake_rollup(self): #calculate velocity at nodes located at wake line midpoints and update the lines
         for strip in self.wakestrips:
             for p in strip:
@@ -640,6 +654,7 @@ class Solid:
             l.nabut=0
     def PG_apply(self, beta, a, b): #beta indicates PG correction factor for compressibility
         PG_apmat=PG_xmult(beta, a, b)
+        PG_apv=PG_unitov(beta, a, b)
         #convert lines
         self.lines[:, 0, :]=PG_apmat[0, 0]*self.lines[:, 0, :]+PG_apmat[0, 1]*self.lines[:, 1, :]+PG_apmat[0, 2]*self.lines[:, 2, :]
         self.lines[:, 1, :]=PG_apmat[1, 0]*self.lines[:, 0, :]+PG_apmat[1, 1]*self.lines[:, 1, :]+PG_apmat[1, 2]*self.lines[:, 2, :]
@@ -652,6 +667,19 @@ class Solid:
         for strip in self.wakestrips:
             for p in strip:
                 p.center=PG_apmat@p.center
+        if hasattr(self, 'selfinf_mat_x'):
+            #convert self influence and aicm3_line matrixes
+            self.selfinf_mat_x=PG_apv[0, 0]*self.selfinf_mat_x+PG_apv[0, 1]*self.selfinf_mat_y+PG_apv[0, 2]*self.selfinf_mat_z
+            self.selfinf_mat_y=PG_apv[1, 0]*self.selfinf_mat_x+PG_apv[1, 1]*self.selfinf_mat_y+PG_apv[1, 2]*self.selfinf_mat_z
+            self.selfinf_mat_z=PG_apv[2, 0]*self.selfinf_mat_x+PG_apv[2, 1]*self.selfinf_mat_y+PG_apv[2, 2]*self.selfinf_mat_z
+        if hasattr(self, 'aicm3_line'):
+            #self.aicm remains the same
+            self.aicm3_line[0, :, :]=PG_apv[0, 0]*self.aicm3_line[0, :, :]+PG_apv[0, 1]*self.aicm3_line[1, :, :]+PG_apv[0, 2]*self.aicm3_line[2, :, :]
+            self.aicm3_line[1, :, :]=PG_apv[1, 0]*self.aicm3_line[0, :, :]+PG_apv[1, 1]*self.aicm3_line[1, :, :]+PG_apv[1, 2]*self.aicm3_line[2, :, :]
+            self.aicm3_line[2, :, :]=PG_apv[2, 0]*self.aicm3_line[0, :, :]+PG_apv[2, 1]*self.aicm3_line[1, :, :]+PG_apv[2, 2]*self.aicm3_line[2, :, :]
+            self.aicm3[0, :, :]=PG_apv[0, 0]*self.aicm3[0, :, :]+PG_apv[0, 1]*self.aicm3[1, :, :]+PG_apv[0, 2]*self.aicm3[2, :, :]
+            self.aicm3[1, :, :]=PG_apv[1, 0]*self.aicm3[0, :, :]+PG_apv[1, 1]*self.aicm3[1, :, :]+PG_apv[1, 2]*self.aicm3[2, :, :]
+            self.aicm3[2, :, :]=PG_apv[2, 0]*self.aicm3[0, :, :]+PG_apv[2, 1]*self.aicm3[1, :, :]+PG_apv[2, 2]*self.aicm3[2, :, :]
     def PG_remove(self, beta, a, b): #remove effect of previously imposed PG correction
         PG_apmat=PG_inv_xmult(beta, a, b)
         PG_apv=PG_vtouni(beta, a, b)
@@ -745,8 +773,36 @@ class Solid:
             if echo:
                 print('AIC matrix generation: '+str(tm.time()-t)+' s')
             t=tm.time()
-            self.PG_remove(beta, a, b)
             self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
+            self.PG_remove(beta, a, b)
+            self.velcompute()
+            self.calcpress(Uinf=Uinf, M=M, gamma=gamma)
+            self.calcforces()
+            if echo:
+                print('Solution and post-processing: '+str(tm.time()-t)+' s')
+                print('=============================')
+    def resolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
+        wakeiter=0, tolerance=1e-5): #Re-run a simulation redefining the wake to new  freestream properties
+        if self.runme:
+            if echo:
+                print('========Euler solution=======')
+                print(self.npanels, ' panels, ', self.nlines, ' lines')
+            t=tm.time()
+            self.genvbar(Uinf, a=a, b=b, p=p, q=q, r=r)
+            self.wake_redef(Uinf=Uinf, a=a, b=b)
+            self.gennvv()
+            self.PG_apply(beta, a, b)
+            if echo:
+                print('Pre-processing: '+str(tm.time()-t)+' s')
+            t=tm.time()
+            self.wake_aicm_recalc()
+            self.gen_selfinf_mat()
+            if echo:
+                print('AIC matrix generation: '+str(tm.time()-t)+' s')
+            t=tm.time()
+            self.solve(damper=damper, wakeiter=wakeiter, Uinf=Uinf, a=a, b=b, p=p, q=q, r=r, tolerance=tolerance, echo=echo)
+            self.PG_remove(beta, a, b)
+            self.velcompute()
             self.calcpress(Uinf=Uinf, M=M, gamma=gamma)
             self.calcforces()
             if echo:

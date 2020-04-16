@@ -181,3 +181,6 @@ def PG_inv_xmult(beta, a, b): #inverse of the matrix before
 
 def PG_vtouni(beta, a, b): #returns matrix converting incompressible PG calculated velocities to compressible case
     return Mstreamtouni(a, b)@np.diag(np.array([1.0, beta, beta]))@Mtostream(a, b)
+
+def PG_unitov(beta, a, b): #inverse of function in prior entry
+    return lg.inv(PG_vtouni(beta, a, b))
