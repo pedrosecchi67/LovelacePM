@@ -215,9 +215,11 @@ to compute local vorticity surface gradient, used for surface velocity deduction
 paneller.Solid.gen_selfinf.__doc__='''gen_selfinf(): computes local vorticity gradient and adds its influence on local disturbance velocity as computed by Ashok Srivastava in his papers on Vortex Panel Method.
 Adds the computed contribution to Solid.delphi'''
 paneller.Solid.solve.__doc__='''solve(damper=0.0, target=np.array([])wakeiter=0, Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, tolerance=1e-5, echo=True):
-computes solution and surface forces, with local panel transpiration (to enable viscid-inviscid coupling) input to \'target\'.
+computes solution, with local panel transpiration (to enable viscid-inviscid coupling) input to \'target\'.
 if len(target)==0: target=np.zeros(npanels). A Thikhonov regularization is performed with damping coefficient \'damper\' if damper floating point kwarg is set as non-zero, thus solving even an ill-conditioned 
 AIC matrix. Wake iterations (with their number defined by wakeiter kwarg) are performed according to provided freestream arguments'''
+paneller.Solid.resolve.__doc__='''resolve(damper=0.0, target=np.array([])wakeiter=0, Uinf=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, tolerance=1e-5, echo=True):
+redefines wake geometry for new freestream parameters and recalculates solution, as done in Solid.solve() (with the exception that non-wake line AICs are not computed)'''
 paneller.Solid.calcpress.__doc__='''calcpress(Uinf=1.0, gamma=1.4, M=0.0): calculates Solid.Cps based on Solid.vbar and Solid.delphi'''
 paneller.Solid.calcforces.__doc__='''calcforces(): calculates local forces and moments on each panel, based on Solid.Cps and Solid.Cfs'''
 paneller.Solid.calc_derivative_dv.__doc__='''calc_derivative_dv(Uinf, dvdksi, M=0.0, gamma=1.4): calculates derivatives in local pressure coefficients as array dCps, based on input
@@ -236,6 +238,9 @@ paneller.Solid.addorder.__doc__='''addorder(self, queue, colmat, ind1, ind2): ad
 paneller.Solid.panel_calcSn.__doc__='''panel_calcSn(p): recalculates area and normal vector for panel p'''
 paneller.Solid.PG_apply.__doc__='''PG_apply(beta, a, b): applies PG correction to all panel and line positions (including wake panels) according to correction factor beta and freestream parameters a and b'''
 paneller.Solid.PG_remove.__doc__='''PG_remove(beta, a, b): reverses effects from Solid.PG_apply(beta, a, b) and converts AIC matrixes and self-influence matrixes to compressible values'''
+paneller.Solid.wake_aicm_recalc.__doc__='''wake_aicm_recalc(): recalculates wake line aerodynamic influence coefficients based on wake redefinition previously applied by Solid.wake_redef()'''
+paneller.Solid.wake_redef.__doc__='''wake_redef(Uinf=1.0, a=0.0, b=0.0): redefines wake line geometries to fit new definitions of freestream parameters'''
+paneller.Solid.velcompute.__doc__='''velcompute(): computes velocity field on panel collocation points across the solid'''
 
 utils.__doc__='''
 Module containing geometry processing, list trimming and other utilities for other modules
