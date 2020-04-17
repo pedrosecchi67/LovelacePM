@@ -98,7 +98,7 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
 
 class polar_correction:
     def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True, full_parallel=False):
-        if (not full_parallel) and current_process().name != 'MainProcess':
+        if (not full_parallel) and current_process().name == 'LPM_child':
             self.runme=False
         else:
             self.runme=True

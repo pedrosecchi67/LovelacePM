@@ -49,8 +49,8 @@ class WakePanel:
         self.v=np.zeros(3)
 
 class Solid:
-    def __init__(self, sldlist=[], wraparounds=[], full_parallel=False, caller_process='MainProcess'): #solid data type
-        if ((not full_parallel) and mp.current_process().name != caller_process):
+    def __init__(self, sldlist=[], wraparounds=[], full_parallel=False): #solid data type
+        if ((not full_parallel) and mp.current_process().name == 'LPM_child'):
             self.runme=False
         else:
             self.runme=True
@@ -412,7 +412,7 @@ class Solid:
                 self.addorder(queue1, colmat, ind1=calclims[i][0], ind2=calclims[i][1])
             processes=[]
             for i in range(ncpus):
-                processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
+                processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2), name='LPM_child')]
             for p in processes:
                 p.start()
             ordresults=[]

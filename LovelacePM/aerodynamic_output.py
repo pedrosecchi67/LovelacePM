@@ -17,7 +17,7 @@ from body import *
 from wing import *
 
 def plot_Cps(sld, elems=[], xlim=[], ylim=[], zlim=[-2.5, 2.5]):
-    if len(elems)!=0 and elems[0].sld.runme:
+    if len(elems)!=0 and sld.runme:
         fig=plt.figure()
         ax=plt.axes(projection='3d')
         xs=[]
@@ -52,7 +52,7 @@ def plot_Cps(sld, elems=[], xlim=[], ylim=[], zlim=[-2.5, 2.5]):
         plt.show()
 
 def plot_Cls(sld, alpha=0.0, wings=[], axis=1):
-    if len(wings)!=0 and wings[0].sld.runme:
+    if len(wings)!=0 and sld.runme:
         ypos=[0.0]
         plotcorr=False
         n=1
@@ -93,7 +93,7 @@ def plot_gammas(sld, alpha=0.0, Uinf=1.0, wings=[], axis=1):
         plt.show()
 
 def plot_Cds(sld, alpha=0.0, wings=[], axis=1):
-    if len(wings)!=0 and wings[0].sld.runme:
+    if len(wings)!=0 and sld.runme:
         ypos=[0.0]
         plotcorr=False
         n=1
@@ -117,7 +117,7 @@ def plot_Cds(sld, alpha=0.0, wings=[], axis=1):
         plt.show()
 
 def plot_Cms(sld, alpha=0.0, wings=[], axis=1):
-    if len(wings)!=0 and wings[0].sld.runme:
+    if len(wings)!=0 and sld.runme:
         ypos=[0.0]
         plotcorr=False
         n=1
