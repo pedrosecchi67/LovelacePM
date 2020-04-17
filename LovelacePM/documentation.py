@@ -169,12 +169,13 @@ resolve
 aic_memory_clean
 '''
 
-paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[], full_parallel=False, allow_children=False): instantiate solid, adding the first patches as their matrixes of point arrays 
+paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[], full_parallel=False, caller_process='MainProcess'): instantiate solid, adding the first patches as their matrixes of point arrays 
 are inserted in list sldlist, 
 and their wrapping directions are in the list of lists wraparounds. Ex. sldlist=[mat], wraparounds=[[1]] indicates a patch mat is to be first inserted, with the lines in the first row of mat
-being considered the same as those of the last row. wraparounds=[[0]] would do the same with first and last columns in \'mat\' matrix. If flag allow_children is set to False, recursive subprocess
-creation (specific to Windows OS) is stopped by only allowing child process creation from __main__ task.
-If flag full_parallel is selected, parallel execution of aicm calculations will be held so as to stop recursive multiprocessing on windows. This is necessary when parallelizing the whole analysis operation'''
+being considered the same as those of the last row. wraparounds=[[0]] would do the same with first and last columns in \'mat\' matrix. Argument caller_process is a value which multiprocessing.process_name() 
+should have in order to allow for child process creation. This is a guard against recursive child process generation.
+If flag full_parallel is selected, parallel execution of aicm calculations will be held so as to stop recursive multiprocessing on Windows. This is necessary when parallelizing the whole analysis operation as well,
+so as not to generate child processes recursively'''
 paneller.Solid.addpatch.__doc__='''addpatch(sld, wraps=[], prevlines={}, invlats=[], tolerance=5e-5): add patch with point array matrix (list of lists) sld. prevlines indicates indexes of previously
 created lines to be used as edges for points in the first (key \'low\') or last (key \'up\') rows or columns (\'right\' and \'left\' keys).
 invlats contains the previously cited keys for laterals which should have its lines inverted when being added to panels. wraps contains wraparound commands as axis indexes, as described in reference
