@@ -590,6 +590,9 @@ class wing:
                     disctemp+=[floor(np.interp(ltemp[i]/ltot, np.array([0.0, 1.0]), np.array([0, ydisc])))]
                 disctemp+=[ydisc-sum(disctemp)]
                 ydisc=disctemp
+            for i in range(len(ydisc)):
+                if ydisc[i]<2:
+                    ydisc[i]=2
             
             #generate patches one by one
             
