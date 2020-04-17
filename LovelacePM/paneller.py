@@ -49,8 +49,8 @@ class WakePanel:
         self.v=np.zeros(3)
 
 class Solid:
-    def __init__(self, sldlist=[], wraparounds=[], full_parallel=False): #solid data type
-        if (not full_parallel) and mp.current_process().name != 'MainProcess':
+    def __init__(self, sldlist=[], wraparounds=[], full_parallel=False, allow_children=False): #solid data type
+        if (not allow_children) and ((not full_parallel) and mp.current_process().name != 'MainProcess'):
             self.runme=False
         else:
             self.runme=True
