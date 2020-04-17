@@ -165,6 +165,8 @@ calc_derivative
 plotgeometry
 plotnormals
 eulersolve
+resolve
+aic_memory_clean
 '''
 
 paneller.Solid.__init__.__doc__='''__init__(sldlist=[], wraparounds=[], full_parallel=False): instantiate solid, adding the first patches as their matrixes of point arrays are inserted in list sldlist, 
@@ -241,6 +243,11 @@ paneller.Solid.PG_remove.__doc__='''PG_remove(beta, a, b): reverses effects from
 paneller.Solid.wake_aicm_recalc.__doc__='''wake_aicm_recalc(): recalculates wake line aerodynamic influence coefficients based on wake redefinition previously applied by Solid.wake_redef()'''
 paneller.Solid.wake_redef.__doc__='''wake_redef(Uinf=1.0, a=0.0, b=0.0): redefines wake line geometries to fit new definitions of freestream parameters'''
 paneller.Solid.velcompute.__doc__='''velcompute(): computes velocity field on panel collocation points across the solid'''
+paneller.Solid.resolve.__doc__='''resolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, wakeiter=0, tolerance=1e-5): 
+recomputes complete euler solution through calls for 
+Solid.genvbar, gennvv, wake_aicm_recalc (to fit new freestream parameters), solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True. 
+Applies PG correction factor beta. M and gamma used for Cp compressibility corrections.'''
+paneller.Solid.resolve.__doc__='''aic_memory_clean(): deletes and garbage-collects aic matrixes (up to 80\% of program's total memory usage)'''
 
 utils.__doc__='''
 Module containing geometry processing, list trimming and other utilities for other modules
