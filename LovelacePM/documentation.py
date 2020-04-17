@@ -247,7 +247,7 @@ paneller.Solid.resolve.__doc__='''resolve(self, target=np.array([]), Uinf=1.0, M
 recomputes complete euler solution through calls for 
 Solid.genvbar, gennvv, wake_aicm_recalc (to fit new freestream parameters), solve, calcpress and calcforces. Uses given freestream parameters and outputs time duration report if echo==True. 
 Applies PG correction factor beta. M and gamma used for Cp compressibility corrections.'''
-paneller.Solid.resolve.__doc__='''aic_memory_clean(): deletes and garbage-collects aic matrixes (up to 80\% of program's total memory usage)'''
+paneller.Solid.aic_memory_clean.__doc__='''aic_memory_clean(): deletes and garbage-collects aic matrixes (up to 80\% of program's total memory usage)'''
 
 utils.__doc__='''
 Module containing geometry processing, list trimming and other utilities for other modules
