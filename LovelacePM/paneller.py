@@ -401,33 +401,32 @@ class Solid:
         for i in range(len(self.panels)):
             colmat[i, :]=self.panels[i].colpoint
             nvectmat[i, :]=self.panels[i].nvector
-        ncpus=mp.cpu_count()
-        calclims=np.linspace(0, self.nlines, ncpus+1)
-        calclims=[int(c) for c in calclims]
-        calclims=[[calclims[i], calclims[i+1]] for i in range(ncpus)]
-        queue1=mp.Queue()
-        queue2=mp.Queue()
-        for i in range(len(calclims)):
-            self.addorder(queue1, colmat, ind1=calclims[i][0], ind2=calclims[i][1])
         if not self.full_parallel:
+            ncpus=mp.cpu_count()
+            calclims=np.linspace(0, self.nlines, ncpus+1)
+            calclims=[int(c) for c in calclims]
+            calclims=[[calclims[i], calclims[i+1]] for i in range(ncpus)]
+            queue1=mp.Queue()
+            queue2=mp.Queue()
+            for i in range(len(calclims)):
+                self.addorder(queue1, colmat, ind1=calclims[i][0], ind2=calclims[i][1])
             processes=[]
             for i in range(ncpus):
                 processes+=[mp.Process(target=subprocess_genaicm, args=(queue1, queue2))]
             for p in processes:
                 p.start()
+            ordresults=[]
+            for i in range(ncpus):
+                ordresults+=[queue2.get()]
+            if not self.full_parallel:
+                for p in processes:
+                    p.join()
+            self.aicm3_line=np.zeros((3, self.npanels, self.nlines))
+            for ordresult in ordresults:
+                self.aicm3_line[:, :, ordresult[0]:ordresult[1]]=ordresult[2]
         else:
             print('NOTICE: running LovelacePM without parallel AICM calculation')
-            for i in range(ncpus):
-                subprocess_genaicm(queue1, queue2)
-        ordresults=[]
-        for i in range(ncpus):
-            ordresults+=[queue2.get()]
-        if not self.full_parallel:
-            for p in processes:
-                p.join()
-        self.aicm3_line=np.zeros((3, self.npanels, self.nlines))
-        for ordresult in ordresults:
-            self.aicm3_line[:, :, ordresult[0]:ordresult[1]]=ordresult[2]
+            self.aicm3_line=pytoolkit.aicm_lines_gen(self.lines, colmat)
         self.gen_panline()
         self.aicm3=np.zeros((3, self.npanels, self.npanels))
         for i in range(3):
@@ -809,7 +808,7 @@ class Solid:
             if echo:
                 print('Solution and post-processing: '+str(tm.time()-t)+' s')
                 print('=============================')
-    def aic_memory_clean(self):
+    def aic_memory_clean(self): #garbage-collect memory from AIC matrixes, which can be, with this method, deleted after calculations
         if self.runme:
             del self.aicm, self.iaicm, self.aicm3, self.aicm3_line
             gc.collect()
