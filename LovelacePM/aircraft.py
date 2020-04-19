@@ -9,6 +9,10 @@ from mpl_toolkits import mplot3d
 import scipy.sparse as sps
 import scipy.interpolate as sinterp
 import time as tm
+import os
+import dill #definitions for lambda pickling
+import cloudpickle as pck
+import multiprocessing as mp
 
 import pyfdyn
 
@@ -206,13 +210,16 @@ class aircraft: #class to ease certain case studies for full aircraft
                 zkeypts+=[bdy.sections[i].center[2]-bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
                 ykeypts+=[bdy.sections[i].center[1]+bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
                 zkeypts+=[bdy.sections[i].center[2]+bdy.sections[i].Rs[i] for i in range(len(bdy.sections))]
-            xmax=max(xkeypts)
-            xmin=min(xkeypts)
-            ymax=max(ykeypts)
-            ymin=min(ykeypts)
-            zmax=max(zkeypts)
-            zmin=min(zkeypts)
-            self.plotlim=max([abs(xmax), abs(ymax), abs(zmax), abs(xmin), abs(ymin), abs(zmin)])
+            if len(xkeypts)!=0:
+                xmax=max(xkeypts)
+                xmin=min(xkeypts)
+                ymax=max(ykeypts)
+                ymin=min(ykeypts)
+                zmax=max(zkeypts)
+                zmin=min(zkeypts)
+                self.plotlim=max([abs(xmax), abs(ymax), abs(zmax), abs(xmin), abs(ymin), abs(zmin)])
+            else:
+                self.plotlim=1.0
         else:
             self.sld=sld
     def hascontrol(self):
@@ -448,4 +455,41 @@ class aircraft: #class to ease certain case studies for full aircraft
             return wnglist
         else:
             return []
-            
+    def dump(self, filename, filedir='', ext_append=True, erase_AIC=True, overwrite=True):
+        if self.sld.runme:
+            if len(filedir)==0:
+                filedir=os.getcwd()
+            fname=filename+('.lpm' if ext_append else '')
+            ordir=os.getcwd()
+            os.chdir(filedir)
+            if os.path.exists(fname):
+                if overwrite:
+                    print('WARNING: aircraft file already exists. Overwritting')
+                else:
+                    raise Exception('Attempted to overwrite acft file with aircraft.dump() kwarg overwrite set to False')
+            if erase_AIC:
+                if hasattr(self.sld, 'aicm3') or hasattr(self.sld, 'aicm3_line') or hasattr(self.sld, 'aicm') or hasattr(self.sld, 'iaicm'):
+                    print('WARNING: erasing AIC matrixes from solid for aircraft dumping. To override this behaviour, change kwarg flag erase_AIC to False.')
+                    self.sld.aic_memory_clean()
+            fil=open(fname, 'wb')
+            pck.dump(self, fil)
+            fil.close()
+            os.chdir(ordir)
+
+def read_aircraft(filename, filedir='', ext_append=True):
+    if mp.current_process().name!='LPM_child': #guard against recursive imports
+        if len(filedir)==0:
+            filedir=os.getcwd()
+        fname=filename+('.lpm' if ext_append else '')
+        ordir=os.getcwd()
+        os.chdir(filedir)
+        if not os.path.exists(fname):
+            raise Exception('File for aircraft loading not found: '+filedir+'/'+fname)
+        fil=open(fname, 'rb')
+        acft=pck.load(fil)
+        fil.close()
+        os.chdir(ordir)
+        return acft
+    else:
+        sld=Solid() #this Solid, due to the current process's identity, should be returned as a runme==False Solid and lead to non-recursive imports
+        return aircraft(sld, elems=[], echo=False)

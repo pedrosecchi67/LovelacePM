@@ -119,7 +119,7 @@ acft.forces_report()
 acft.stabreport()
 acft.balance(SM=0.1)
 acft.addmass(m=m, Ixx=Ixx, Iyy=Iyy, Izz=Izz)
-'''external_history, alpha_history, beta_history, euler_history, time_history=acft.dynamic_simulation(nstep=2.5e3, dt=1e-4, perturbations={'w':10.0})
+external_history, alpha_history, beta_history, euler_history, time_history=acft.dynamic_simulation(nstep=2.5e3, dt=1e-4, perturbations={'w':10.0})
 plt.plot(time_history, alpha_history)
 plt.xlabel('t [s]')
 plt.ylabel('Var. in angle of attack [rad]')
@@ -128,6 +128,6 @@ external_history, alpha_history, beta_history, euler_history, time_history=acft.
 plt.plot(time_history, beta_history)
 plt.xlabel('t [s]')
 plt.ylabel('Var. in sideslip angle [rad]')
-plt.show()'''
+plt.show()
 
 os.chdir(ordir)

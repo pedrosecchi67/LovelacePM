@@ -777,6 +777,7 @@ stabreport
 edit_parameters
 bodies_eqflatplate_apply
 eulersolve
+resolve
 forces_report
 plot_input
 plotgeometry
@@ -829,6 +830,13 @@ coefficients for analysis angle of attack and sideslip are set to zero to simula
 aircraft.aircraft.design_derivatives.__doc__='''design_derivatives(wings=[], echo=True): computes design derivatives of aerodynamic coefficients (in degrees) with respect to wing section incidence changes.
 returns list of lists. Each sublist includes the dictionaries, each dictionary with keys \'dCL\', \'dCD\', \'dCX\', etc for all derivatives of a given wing section. Order in return value is:
 [[w1-section1, w1-section2], [w2-section1, ...]]'''
+aircraft.aircraft.resolve.__doc__='''resolve(echo=True, damper=0.0, wakeiter=0): runs Solid.resolve() with the present freestream parameters set for the aircraft. Time report is presented if echo is True.
+A Thikhonov regularization (with damping coefficient set by damper kwarg) can be performed with the AIC matrix if damper is non-zero. wakeiter iterations of wake rollup are executed'''
+aircraft.aircraft.dump.__doc__='''dump(filename, filedir='', ext_append=True, erase_AIC=True, overwrite=True): writes aircraft to file filename (.lpm if ext_append is True) in directory filedir.
+File overwritting is blocked if overwrite is set to False, with an exception being raised. erase_AIC should be set to False if AIC matrixes ought to be added to file. They are
+previously deleted from aircraft object (see reference to Solid.aic_memory_clean() if necessary) if they are still present'''
+aircraft.read_aircraft.__doc__='''read_aircraft(filename, filedir='', ext_append=True): reads an aircraft pickled to file filename (.lpm is assumed if ext_append is set to True) in directory
+filedir'''
 
 aerodynamic_output.__doc__='''
 Module containing functions for plotting aerodynamic results

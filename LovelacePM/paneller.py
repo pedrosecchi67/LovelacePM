@@ -756,7 +756,7 @@ class Solid:
             plt.ylabel('y')
             plt.show()
     def eulersolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
-        wakeiter=0, tolerance=1e-5, aic_memory_clean=False):
+        wakeiter=0, tolerance=1e-5):
         if self.runme:
             if echo:
                 print('========Euler solution=======')
@@ -810,7 +810,14 @@ class Solid:
                 print('=============================')
     def aic_memory_clean(self): #garbage-collect memory from AIC matrixes, which can be, with this method, deleted after calculations
         if self.runme:
-            del self.aicm, self.iaicm, self.aicm3, self.aicm3_line
+            if hasattr(self, 'aicm'):
+                del self.aicm
+            if hasattr(self, 'aicm3'):
+                del self.aicm3
+            if hasattr(self, 'iaicm'):
+                del self.iaicm
+            if hasattr(self, 'aicm3_line'):
+                del self.aicm3_line
             gc.collect()
 
 '''sld=Solid(sldlist=[np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]).T])
