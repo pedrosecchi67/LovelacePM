@@ -12,7 +12,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="LovelacePM",
-    version="0.2.0",
+    version="0.2.1",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
