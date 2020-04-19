@@ -216,6 +216,8 @@ Note that, for the automation to work, **Xfoil must be located within the user's
 
 You can contribute to LovelacePM by assisting us in meeting the system requirements and code conventions listed in the sections below.
 
+You can also check our file structure at our CONTRIBUTING.md file.
+
 ### Introduction to the project
 
 This README refers to capabilities and usage conditions referrent to version 0.1.0. Version 0.1.0 is a beta testing version and has not yet met all system requirements listed below.
