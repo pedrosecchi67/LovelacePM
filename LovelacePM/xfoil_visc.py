@@ -146,7 +146,7 @@ class polar_correction:
             fname=polname
             if ext_append:
                 fname+='.plr'
-            file=open(fname, 'r')
+            file=open(fname, 'w')
             file.write(str(len(self.alphas_inviscid))+'\n')
             if echo:
                 print('Dumping '+polname+' polar')
