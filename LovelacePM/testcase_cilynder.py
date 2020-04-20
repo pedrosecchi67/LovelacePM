@@ -14,8 +14,9 @@ from wing import *
 from body import *
 from aircraft import *
 from aerodynamic_output import *
+from multiprocess_guard import *
 
-if __name__=='__main__':
+if multiprocess_guard():
     Uinf=1.0
     t=tm.time()
     c=0.0

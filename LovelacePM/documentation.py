@@ -6,6 +6,21 @@ import body
 import aircraft
 import xfoil_visc
 import aerodynamic_output
+import multiprocess_guard
+multiprocess_guard.__doc__='''
+
+Module containing recursion guard against Windows recursive multiprocessing
+
+=========
+functions
+=========
+
+multiprocess_guard
+'''
+multiprocess_guard.multiprocess_guard.__doc__='''
+multiprocess_guard(): function returning True if the process being executed is NOT being called as a child process of LovelacePM itself
+'''
+
 paneller.__doc__='''
 
 Module containing information regarding a solid and its discretization in panels.
