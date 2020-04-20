@@ -21,6 +21,7 @@ for memory saving
 ├── __init__.py: autoupdate control with LoveUpdate and importation of essential modules
 ├── Makefile: legacy f2py modules compilation Makefile
 ├── monoplane.py: monoplane example case for Tutorial 3
+├── multiprocess_guard.py: implementation of a multiprocessing recursion guard for Windows
 ├── paneller.py: Solid and Panel class definitions and methods directly related 
 to panel method
 ├── pyfdyn.py: new, pure-Python replacement for fdyn.f90

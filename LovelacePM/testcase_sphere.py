@@ -9,11 +9,12 @@ import time as tm
 import multiprocess as mp
 
 from paneller import *
+from multiprocess_guard import *
 
 '''
 Script to test the Euler solution modules with a generic sphere geometry
 '''
-if __name__=='__main__':
+if multiprocess_guard():
     Uinf=1.0
     t=tm.time()
     c=0.0001

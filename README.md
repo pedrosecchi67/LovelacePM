@@ -33,7 +33,7 @@ from LovelacePM import *
 import numpy as np
 from math import tan, radians
 
-if __name__=='__main__':
+if multiprocess_guard():
     #this guard is highly recommended on Windows 
     
     b=1.1963; croot=0.806; taper=0.56; sweep=26.7
@@ -202,12 +202,13 @@ help(polar_correction)
 Or begin by following this example:
 
 ```
-#generating xfoil corrected polars
-n4412_polar=polar_correction(name='n4412')
-#notice that n4412.dat Selig format airfoil file must be included in your script's directory
+if multiprocess_guard():
+    #generating xfoil corrected polars
+    n4412_polar=polar_correction(name='n4412')
+    #notice that n4412.dat Selig format airfoil file must be included in your script's directory
 
-#adding them to a wing section
-sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
+    #adding them to a wing section
+    sect1=wing_section(CA_position=np.array([0.0, -b/2, 0.0]), c=croot*taper, xdisc=20, correction=n4412_polar, Re=Uinf*rho*croot*taper/mu, closed=True)
 ```
 
 Note that, for the automation to work, **Xfoil must be located within the user's PATH environment variable.**
