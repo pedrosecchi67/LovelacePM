@@ -246,8 +246,7 @@ paneller.Solid.calc_derivative_dv.__doc__='''calc_derivative_dv(Uinf, dvdksi, M=
 local velocity variations (dvdksi, shape (npanels, 3)). Returns array of shape (npanels)'''
 paneller.Solid.calc_derivative_dn.__doc__='''calc_derivative_dn(Uinf, dvdksi, M=0.0, gamma=1.4): calculates derivatives in local pressure coefficients as array dCps, based on input
 local normal velocity variations (dndksi, shape (npanels)). Returns array of shape (npanels)'''
-paneller.Solid.plotgeometry.__doc__='''plotgeometry(xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0): plots solid\'s panelling as wireframe, with plot limits set by x, y, zlim arguments if non-empty.
-if velfield==True, plots vectors correspondent to each panel\'s local velocity vector multiplier by a factor (\'factor\' kwarg) for easier visualization of velocity field'''
+paneller.Solid.plotgeometry.__doc__='''plotgeometry(): plots solid\'s panelling using a pyqtgraph view widget'''
 paneller.Solid.plotnormals.__doc__='''plotnormals(xlim=[], ylim=[], zlim=[], factor=1.0): plots panels as wireframe and their normal vectors p.nvector, scaled by factor kwarg so as to ease visualization.
 Sets plot limits if provided in non-empty kwargs'''
 paneller.Solid.eulersolve.__doc__='''eulersolve(self, target=np.array([]), Uinf=1.0, M=0.0, gamma=1.4, beta=1.0, a=0.0, b=0.0, p=0.0, q=0.0, r=0.0, damper=0.0, echo=True, \
@@ -832,8 +831,7 @@ A Thikhonov regularization (with damping coefficient set by damper kwarg) can be
 aircraft.aircraft.forces_report.__doc__='''forces_report(): prints all force and moment coefficients available (and their viscous corrected equivalents). If none is available, method aircraft.calcforces() is ran'''
 aircraft.aircraft.plot_input.__doc__='''plot_input(xlim=[], ylim=[], zlim=[]): plots all elements of the aircraft as wireframes for input geometry debugging. Sets aircraft.plotlim as plot limits if none
 is provided'''
-aircraft.aircraft.plotgeometry.__doc__='''plotgeometry(xlim=[], ylim=[], zlim=[], factor=1.0, velfield=True): plots the aircraft\'s panelling as a wireframe. If velfield is set to True, local velocities are
-also drawn as vectors (multiplied by scaling factor kwarg for easier visualization)'''
+aircraft.aircraft.plotgeometry.__doc__='''plotgeometry(): plots the aircraft\'s panelling with a pyqtgraph view widget'''
 aircraft.aircraft.addmass.__doc__='''addmass(m=0.0, Ixx=0.0, Iyy=0.0, Izz=0.0, Ixy=0.0, Ixz=0.0, Iyz=0.0, echo=True): adds mass variables to simulation according to kwargs. runs aircraft.parameter_report()
 if echo kwarg is set to True'''
 aircraft.aircraft.dynamic_simulation.__doc__='''dynamic_simulation(nstep=2e5, dt=1e-4, start_point=np.array([0.0, 0.0, 0.0]), perturbations={}, trim=True, visc=True, onboard=np.zeros(3)): 
