@@ -21,7 +21,7 @@ import platform as plat
 
 ''' Xfoil automation to temporarily supply the absense of a parallel, estimative boundary layer solver '''
 
-def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e6, M=0.03, iter=300, flap=None, npan=300, LE_con=0.4, inverse=False):
+def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0], visc=True, Re=3e5, M=0.03, iter=300, flap=None, npan=300, LE_con=0.4, inverse=False):
     #flap variable: [x_hinge, y_hinge, deflection(angles)]. aseq: same input as required for xfoil command
     ordir=os.getcwd()
     if len(afldir)==0:
@@ -97,7 +97,7 @@ def polar_data(name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 1.0],
     return alphas, Cls, Cds, Cms
 
 class polar_correction:
-    def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 2.0], Re_low=2e6, Re_high=3e6, Mach=0.03, flap=None, iter=300, cubic=True, full_parallel=False):
+    def __init__(self, name='n4412', afldir='', ext_append=True, aseq=[-5.0, 20.0, 2.0], Re_low=2e5, Re_high=3e5, Mach=0.03, flap=None, iter=300, cubic=True, full_parallel=False):
         if (not full_parallel) and current_process().name == 'LPM_child':
             self.runme=False
         else:

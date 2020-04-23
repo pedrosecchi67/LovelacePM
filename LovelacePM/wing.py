@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import scipy.sparse as sps
 import time as tm
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 
 from utils import *
 from body import *
