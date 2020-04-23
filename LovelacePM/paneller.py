@@ -11,6 +11,8 @@ import time as tm
 import multiprocessing as mp
 import os
 import gc
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 
 import pytoolkit
 from utils import *
@@ -47,6 +49,17 @@ class WakePanel:
         self.wr=wr
         self.center=center
         self.v=np.zeros(3)
+    def getcoords(self, sld): #generate coordinates in associated Solid class instance
+        pts=np.zeros((3, 4))
+        ll=sld.line_getcoords(self.wl.ind)
+        lr=sld.line_getcoords(self.wr.ind)
+        if ll[0, 1]<ll[0, 0]:
+            ll=np.flip(ll, axis=1)
+        if lr[0, 0]<lr[0, 1]:
+            lr=np.flip(lr, axis=1)
+        pts[:, :2]=ll
+        pts[:, 2:]=lr
+        return pts
 
 class Solid:
     def __init__(self, sldlist=[], wraparounds=[], full_parallel=False): #solid data type
@@ -54,6 +67,7 @@ class Solid:
             self.runme=False
         else:
             self.runme=True
+            self.QtApp=None
             self.full_parallel=full_parallel
             self.panels=[]
             self.lines=[]
@@ -247,21 +261,11 @@ class Solid:
         return left, prevleft
         #straight, alpha and beta defined single wake panel as default
     def panel_getcoords(self, p): #get coordinates for panel based on line vectors and lists
-        if p.lines[0]<0:
-            coords=self.lines[-1-p.lines[0], :, :].T
-        else:
-            coords=self.lines[p.lines[0]-1, :, :].T
-        for i in range(1, len(p.lines)):
-            if p.lines[i]<0:
-                coords=np.vstack((coords, self.lines[-1-p.lines[i], :, 1]))
-            else:
-                coords=np.vstack((coords, self.lines[p.lines[i]-1, :, 1]))
-        coords=coords.T
-        if np.size(coords, 1)==3:
-            temp=coords
-            coords=np.zeros((3, 4))
-            coords[:, 0:3]=temp
-            coords[:, -1]=temp[:, -1]
+        coords=np.zeros((3, 4))
+        for i in range(len(p.lines)):
+            coords[:, i]=self.lines[abs(p.lines[i])-1, :, (1 if p.lines[i]>0 else 0)]
+        if len(p.lines)<4:
+            coords[:, -1]=coords[:, -2]
         return coords
     def panel_calcSn(self, p): #update panel area and normal vector
         l=self.line_getcoords(p.lines[0])
@@ -706,30 +710,47 @@ class Solid:
         self.aicm3[0, :, :]=PG_apv[0, 0]*self.aicm3[0, :, :]+PG_apv[0, 1]*self.aicm3[1, :, :]+PG_apv[0, 2]*self.aicm3[2, :, :]
         self.aicm3[1, :, :]=PG_apv[1, 0]*self.aicm3[0, :, :]+PG_apv[1, 1]*self.aicm3[1, :, :]+PG_apv[1, 2]*self.aicm3[2, :, :]
         self.aicm3[2, :, :]=PG_apv[2, 0]*self.aicm3[0, :, :]+PG_apv[2, 1]*self.aicm3[1, :, :]+PG_apv[2, 2]*self.aicm3[2, :, :]
-    def plotgeometry(self, xlim=[], ylim=[], zlim=[], velfield=True, factor=1.0):
+    def plotgeometry(self, paninds=[], data=None):
         #plot geometry and local velocity vectors, either with or without wake panels
         if self.runme:
-            fig=plt.figure()
-            ax=plt.axes(projection='3d')
-            for i in range(self.nlines):
-                ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'gray')
-            for i in self.problematic:
-                ax.plot3D(self.lines[i, 0, :], self.lines[i, 1, :], self.lines[i, 2, :], 'red')
-            if self.solavailable and velfield:
-                ax.quiver([p.colpoint[0] for p in self.panels], [p.colpoint[1] for p in self.panels], \
-                    [p.colpoint[2] for p in self.panels], [(self.vbar[i, 0]+self.delphi[i, 0])*factor for i in range(self.npanels)], \
-                        [(self.vbar[i, 1]+self.delphi[i, 1])*factor for i in range(self.npanels)], \
-                            [(self.vbar[i, 2]+self.delphi[i, 2])*factor for i in range(self.npanels)])
-            if len(xlim)!=0:
-                ax.set_xlim3d(xlim[0], xlim[1])
-            if len(ylim)!=0:
-                ax.set_ylim3d(ylim[0], ylim[1])
-            if len(zlim)!=0:
-                ax.set_zlim3d(zlim[0], zlim[1])
-            ax.view_init(azim=-135, elev=30)
-            plt.xlabel('x')
-            plt.ylabel('y')
-            plt.show()
+            if len(paninds)==0:
+                paninds=list(range(self.npanels))
+            npans=len(paninds)
+            if self.QtApp is None:
+                self.QtApp=pg.mkQApp()
+            view=gl.GLViewWidget()
+            grids=[gl.GLGridItem() for i in range(3)]
+            for g in grids:
+                view.addItem(g)
+            pcoords=np.zeros((npans*4, 3))
+            pinds=np.zeros((npans*2, 3), dtype='int')
+            pcols=np.ones((npans*2, 4))
+            n=0
+            if not data is None: #normalize color map data
+                lims=np.array([np.amin(data), np.amax(data)])
+                data=np.interp(data, lims, np.array([0.0, 1.0]))
+            for i in range(npans):
+                pcoords[4*i:4*(i+1), :]=self.panel_getcoords(self.panels[paninds[i]]).T
+                pinds[2*i:2*(i+1), :]=np.array([[0, 1, 2], [2, 3, 0]], dtype='int')+n
+                if not (data is None):
+                    pcols[2*i:2*(i+1), :]=np.array([data[paninds[i]], 0.0, 1.0-data[paninds[i]], 1.0])
+                n+=4
+            if data is None:
+                msh=gl.MeshData(vertexes=pcoords, faces=pinds)
+                mshi=gl.GLMeshItem(meshdata=msh, drawEdges=True, edgeColor=pg.glColor('b'), faceColor=pg.glColor('w'))
+            else:
+                msh=gl.MeshData(vertexes=pcoords, faces=pinds, faceColors=pcols)
+                mshi=gl.GLMeshItem(meshdata=msh, drawEdges=True, edgeColor=pg.glColor('b'))
+            view.addItem(mshi)
+            lineItems=[]
+            for strip in self.wakestrips:
+                for pan in strip:
+                    pts=pan.getcoords(self)
+                    lineItems.append(gl.GLLinePlotItem(pos=pts.T, color=pg.glColor('b')))
+            for li in lineItems:
+                view.addItem(li)
+            view.show()
+            input('Press enter to continue...')
     def plotnormals(self, xlim=[], ylim=[], zlim=[], factor=1.0):
         if self.runme:
             #plot normal vectors of panels. Function essentially produced for geometry gen. debugging

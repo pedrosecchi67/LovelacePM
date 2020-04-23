@@ -82,7 +82,7 @@ if multiprocess_guard():
     #sld.genwakepanels(wakecombs=wingquad_left.wakecombs+wingquad_right.wakecombs, wakeinds=[[0, 0]], a=a)
     acft.edit_parameters({'a':a, 'Uinf':Uinf})
     acft.addwake(offset=10.0, wakedisc=30, strategy=lambda x: x)
-    sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+    sld.plotgeometry()
     acft.bodies_eqflatplate_apply(rho=rho, mu=mu)
     acft.eulersolve(wakeiter=1)
     acft.forces_report()

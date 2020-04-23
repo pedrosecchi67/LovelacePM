@@ -28,6 +28,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'cloudpickle', 'LoveUpdate'],
+    install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'cloudpickle', 'pyqtgraph', 'PyOpenGL', 'LoveUpdate'],
     python_requires='>=3.6',
 )

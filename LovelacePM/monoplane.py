@@ -116,6 +116,7 @@ if multiprocess_guard():
     acft.plotgeometry()#xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5+tailcone_height, 0.5+tailcone_height])
     #sld.plotnormals(xlim=[closex-0.5, closex+0.5], zlim=[0.6, 1.6], ylim=[-0.5, 0.5], factor=0.05)
     acft.eulersolve()
+    acft.plotgeometry()
     acft.forces_report()
     acft.stabreport()
     acft.balance(SM=0.1)

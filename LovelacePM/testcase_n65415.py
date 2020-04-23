@@ -52,4 +52,4 @@ if multiprocess_guard():
     plot_Cds(sld, wings=[wng])
     plot_Cms(sld, wings=[wng])
     plot_gammas(sld, wings=[wng])
-    sld.plotgeometry(xlim=[-0.6, 0.6], ylim=[-0.6, 0.6], zlim=[-0.6, 0.6])
+    sld.plotgeometry()

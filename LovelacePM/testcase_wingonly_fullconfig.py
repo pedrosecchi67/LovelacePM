@@ -53,8 +53,6 @@ if multiprocess_guard():
 
     Sref=croot*(1+taper)*(b+fuselage_width)/2
     acft=aircraft(sld, elems=[wng, horz_emp], Sref=Sref, bref=b)
-
-    sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
     #sld.plotnormals(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0], factor=0.1)
     #sld.plotnormals(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2], factor=0.1)
     #sld.genwakepanels(wakecombs=wingquad_left.wakecombs+wingquad_right.wakecombs, wakeinds=[[0, 0]], a=a)
@@ -63,7 +61,7 @@ if multiprocess_guard():
     acft.eulersolve()
     acft.forces_report()
     acft.stabreport()
-    sld.plotgeometry(xlim=[-0.5, 1.5], ylim=[-1.0, 1.0], zlim=[-1.0, 1.0])
+    sld.plotgeometry()
     #sld.plotgeometry(xlim=[-0.1, 0.3], ylim=[0.5, 0.7], zlim=[-0.2, 0.2])
     print(sld.npanels)
     plot_Cps(sld, elems=[wng])

@@ -407,15 +407,9 @@ class aircraft: #class to ease certain case studies for full aircraft
             plt.xlabel('x')
             plt.ylabel('y')
             plt.show()
-    def plotgeometry(self, xlim=[], ylim=[], zlim=[], factor=1.0, velfield=True):
+    def plotgeometry(self):
         if self.sld.runme:
-            if len(xlim)==0:
-                xlim=[-self.plotlim, self.plotlim]
-            if len(ylim)==0:
-                ylim=[-self.plotlim, self.plotlim]
-            if len(zlim)==0:
-                zlim=[-self.plotlim, self.plotlim]
-            self.sld.plotgeometry(xlim=xlim, ylim=ylim, zlim=zlim, factor=factor, velfield=velfield)
+            self.sld.plotgeometry()
     def design_derivatives(self, wings=[], echo=True): #calculate derivatives in forces due to design parameters in a wing - its sectional incidences
         if self.sld.runme:
             if len(wings)==0:
