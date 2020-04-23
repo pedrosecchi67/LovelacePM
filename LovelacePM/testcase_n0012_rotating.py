@@ -1,7 +1,7 @@
 from LovelacePM import *
 import numpy as np
 
-if multiprocess_guard()
+if multiprocess_guard():
     ordir=os.getcwd()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -13,7 +13,7 @@ if multiprocess_guard()
     Uinf=0.3048*1.0 #
 
     a=0.0
-    p=radians(3)*Uinf/(b*2)
+    p=3.0*Uinf/(b*2)
 
     sld=Solid()
 
@@ -30,8 +30,8 @@ if multiprocess_guard()
 
     acft.eulersolve(wakeiter=1)
 
-    plot_Cps(sld, elems=[wng], zlim=[1.0, -1.0])
+    plot_Cps(sld, elems=[wng])
 
-    acft.plotgeometry(velfield=False)
+    acft.plotgeometry()
 
     os.chdir(ordir)

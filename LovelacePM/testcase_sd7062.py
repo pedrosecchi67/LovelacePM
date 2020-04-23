@@ -35,7 +35,7 @@ if multiprocess_guard():
     wng.patchcompose(ydisc=30)
     acft.edit_parameters({'a':a, 'Uinf':Uinf, 'q':q})
     acft.addwake(wakedisc=30, offset=10.0)#, strategy=lambda x:x)
-    
+
     acft.eulersolve(wakeiter=1)
     acft.forces_report()
     acft.stabreport()
@@ -44,7 +44,7 @@ if multiprocess_guard():
     plot_Cds(sld, wings=[wng])
     plot_Cms(sld, wings=[wng])
     plot_gammas(sld, wings=[wng])
-    sld.plotgeometry(velfield=False)
+    sld.plotgeometry()
 
     acft.edit_parameters({'a':a, 'Uinf':Uinf, 'q':q})
     acft.resolve()
@@ -55,6 +55,6 @@ if multiprocess_guard():
     plot_Cds(sld, wings=[wng])
     plot_Cms(sld, wings=[wng])
     plot_gammas(sld, wings=[wng])
-    sld.plotgeometry(velfield=False)
+    sld.plotgeometry()
 
     acft.design_derivatives()

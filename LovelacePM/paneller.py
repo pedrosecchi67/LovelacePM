@@ -710,37 +710,24 @@ class Solid:
         self.aicm3[0, :, :]=PG_apv[0, 0]*self.aicm3[0, :, :]+PG_apv[0, 1]*self.aicm3[1, :, :]+PG_apv[0, 2]*self.aicm3[2, :, :]
         self.aicm3[1, :, :]=PG_apv[1, 0]*self.aicm3[0, :, :]+PG_apv[1, 1]*self.aicm3[1, :, :]+PG_apv[1, 2]*self.aicm3[2, :, :]
         self.aicm3[2, :, :]=PG_apv[2, 0]*self.aicm3[0, :, :]+PG_apv[2, 1]*self.aicm3[1, :, :]+PG_apv[2, 2]*self.aicm3[2, :, :]
-    def plotgeometry(self, paninds=[], data=None):
+    def plotgeometry(self):
         #plot geometry and local velocity vectors, either with or without wake panels
         if self.runme:
-            if len(paninds)==0:
-                paninds=list(range(self.npanels))
-            npans=len(paninds)
             if self.QtApp is None:
                 self.QtApp=pg.mkQApp()
             view=gl.GLViewWidget()
             grids=[gl.GLGridItem() for i in range(3)]
             for g in grids:
                 view.addItem(g)
-            pcoords=np.zeros((npans*4, 3))
-            pinds=np.zeros((npans*2, 3), dtype='int')
-            pcols=np.ones((npans*2, 4))
+            pcoords=np.zeros((self.npanels*4, 3))
+            pinds=np.zeros((self.npanels*2, 3), dtype='int')
             n=0
-            if not data is None: #normalize color map data
-                lims=np.array([np.amin(data), np.amax(data)])
-                data=np.interp(data, lims, np.array([0.0, 1.0]))
-            for i in range(npans):
-                pcoords[4*i:4*(i+1), :]=self.panel_getcoords(self.panels[paninds[i]]).T
+            for i in range(self.npanels):
+                pcoords[4*i:4*(i+1), :]=self.panel_getcoords(self.panels[i]).T
                 pinds[2*i:2*(i+1), :]=np.array([[0, 1, 2], [2, 3, 0]], dtype='int')+n
-                if not (data is None):
-                    pcols[2*i:2*(i+1), :]=np.array([data[paninds[i]], 0.0, 1.0-data[paninds[i]], 1.0])
                 n+=4
-            if data is None:
-                msh=gl.MeshData(vertexes=pcoords, faces=pinds)
-                mshi=gl.GLMeshItem(meshdata=msh, drawEdges=True, edgeColor=pg.glColor('b'), faceColor=pg.glColor('w'))
-            else:
-                msh=gl.MeshData(vertexes=pcoords, faces=pinds, faceColors=pcols)
-                mshi=gl.GLMeshItem(meshdata=msh, drawEdges=True, edgeColor=pg.glColor('b'))
+            msh=gl.MeshData(vertexes=pcoords, faces=pinds)
+            mshi=gl.GLMeshItem(meshdata=msh, drawEdges=True, edgeColor=pg.glColor('b'), faceColor=pg.glColor('w'))
             view.addItem(mshi)
             lineItems=[]
             for strip in self.wakestrips:
