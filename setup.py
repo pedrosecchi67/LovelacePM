@@ -15,6 +15,7 @@ vnumber="0.2.4"
 setup(
     name="LovelacePM",
     version=vnumber,
+    version="0.2.4",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
@@ -30,7 +31,7 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'cloudpickle', 'pyqtgraph', 'PyOpenGL', 'LoveUpdate'],
+    install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'cloudpickle', 'PyQt5', 'pyqtgraph', 'PyOpenGL', 'LoveUpdate'],
     python_requires='>=3.6',
 )
 
