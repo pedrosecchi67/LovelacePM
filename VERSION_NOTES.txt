@@ -1,0 +1,1 @@
+Version v0.2.4 is a routine maintenance distribution. It also includes a new autoupdate release notes report feature.

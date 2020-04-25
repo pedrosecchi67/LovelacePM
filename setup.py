@@ -1,10 +1,12 @@
 import setuptools
 #from numpy.distutils.core import Extension
 from numpy.distutils.core import setup
+import os
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+vnumber="0.2.4"
 
 #libraries=[('toolkit', dict(sources=['toolkit.f90']))]
 #extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f90'], language='f90'), \
@@ -12,7 +14,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="LovelacePM",
-    version="0.2.3",
+    version=vnumber,
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
@@ -20,7 +22,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/pedrosecchi67/LovelacePM",
     packages=['LovelacePM'],
-    package_data={'':['*.dat']},
+    package_data={'':['*.dat', 'VERSION_NOTES.txt']},
     #libraries=libraries,
     #ext_modules=extensions,
     classifiers=[
@@ -31,3 +33,9 @@ setup(
     install_requires=['numpy', 'func-timeout', 'scipy', 'matplotlib', 'cloudpickle', 'pyqtgraph', 'PyOpenGL', 'LoveUpdate'],
     python_requires='>=3.6',
 )
+
+try:
+    import LoveUpdate as lupd
+    lupd.release_note_report(fname='VERSION_NOTES.txt', fdir=os.path.dirname(__file__), program='LovelacePM', version='v'+vnumber)
+except:
+    print('LoveUpdate not yet available for release notes')
