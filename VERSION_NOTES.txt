@@ -1,6 +1,6 @@
 
 
 ========================================
-Version v0.2.4 includes a new control surface hinge moment calculation feature!!!
+Version v0.2.5 includes a new control surface hinge moment calculation feature!!!
 Check the control surface tutorial on our GitHub Wiki for more details: https://github.com/pedrosecchi67/LovelacePM/wiki/Tutorial-9---Control-surfaces
 ========================================

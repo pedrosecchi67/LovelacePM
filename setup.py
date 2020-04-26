@@ -6,7 +6,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-vnumber="0.2.4"
+vnumber="0.2.5"
 
 #libraries=[('toolkit', dict(sources=['toolkit.f90']))]
 #extensions=[Extension(name='LovelacePM.toolkit', sources=['LovelacePM/toolkit.f90'], language='f90'), \
