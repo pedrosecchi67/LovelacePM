@@ -15,7 +15,6 @@ vnumber="0.2.4"
 setup(
     name="LovelacePM",
     version=vnumber,
-    version="0.2.4",
     author="Pedro de Almeida Secchi",
     author_email="pedrosecchimail@gmail.com",
     description="Python based, open source vortex ring panel method code",
