@@ -19,9 +19,9 @@ from multiprocess_guard import *
 if multiprocess_guard():
     sld=Solid()
 
-    b=1.0
-    c=0.1
-    Uinf=0.01
+    b=3.0
+    c=0.3
+    Uinf=20.0
 
     sect1=wing_section(afl='n4412', c=c, CA_position=np.array([0.0, -b/2, 0.0]), xdisc=30)
     sect2=wing_section(afl='n4412', c=c, CA_position=np.array([0.0, 0.0, 0.0]), xdisc=30)
@@ -30,11 +30,12 @@ if multiprocess_guard():
     wngqd2=wing_quadrant(sld, sect1=sect2, sect2=sect3)
     wng=wing(sld, wingquads=[wngqd1, wngqd2])
     acft=aircraft(sld, elems=[wng])
-    acft.edit_parameters({'Uinf':0.01, 'aileron':20.0, 'tab':-20.0})
+    acft.edit_parameters({'Uinf':Uinf, 'aileron':30.0, 'tab':20.0})
     wng.patchcompose(ydisc=70)
     sld.plotgeometry()
     acft.addwake()
     acft.eulersolve()
+    print(wngqd1.hinge_moments())
     plot_Cps(sld, elems=[wng])
     plot_Cls(sld, wings=[wng])
     sld.plotgeometry()

@@ -81,10 +81,14 @@ class wing_section: #class to define wing section based on airfoil info
             ths=[ths]
         trimlist(len(control_inds), ths)
         points=np.array(list(self.points))
-        for i in control_inds:
-            for ptind in self.control_ptinds[i]:
+        for i in range(len(control_inds)):
+            for ptind in self.control_ptinds[control_inds[i]]:
                 pt=np.reshape(points[ptind, :], (3))
-                points[ptind, :]=self.controls[i].axis.control_rot_func(pt, self.controls[i].multiplier*ths[i])
+                points[ptind, :]=self.controls[control_inds[i]].axis.control_rot_func(pt, self.controls[control_inds[i]].multiplier*ths[i])
+            for j in control_inds[i+1:]:
+                p0=self.controls[control_inds[i]].axis.control_rot_func(self.controls[j].axis.p0, self.controls[control_inds[i]].multiplier*ths[i])
+                p1=self.controls[control_inds[i]].axis.control_rot_func(self.controls[j].axis.p1, self.controls[control_inds[i]].multiplier*ths[i])
+                self.controls[j].axis.__init__(p0=p0, p1=p1)
         return points
 
 class wing_quadrant: #wing region between two airfoil sections
@@ -378,6 +382,11 @@ class wing_quadrant: #wing region between two airfoil sections
                 self.close_tip(sectside=1)
             if closedr:
                 self.close_tip(sectside=2)
+    def hinge_moments(self):
+        H={}
+        for cont in self.controls:
+            H[cont]=self.controls[cont].hinge_moment(self.paninds, self.sld)*(self.acft.rho*self.acft.Uinf**2)/2
+        return H
     def calc_reference(self, axis=1): #input for wing's calc reference function
         if self.sld.runme:
             ys=np.array([self.sect1.CA_position[axis], self.sect2.CA_position[axis]])

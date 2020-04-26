@@ -39,7 +39,13 @@ class control_axis: #definition of control axis with functions to rotate points 
         Mtouni[:, 0]-=Mtouni[:, 2]*(Mtouni[:, 2]@Mtouni[:, 0])
         Mtouni[:, 0]/=lg.norm(Mtouni[:, 0])
         Mtouni[:, 1]=np.cross(Mtouni[:, 2], Mtouni[:, 0])
+        self.p0=p0
+        self.p1=p1
+        self.u=p1-p0
+        self.u/=lg.norm(self.u)
         self.control_rot_func=lambda pt, th: Mtouni@(z_rotation_matrix(-th)@(Mtouni.T@(pt-p0)))+p0
+    def panel_hinge_moment(self, pt, F): #compute hinge moment for a force F applied at point pt
+        return self.u@np.cross(pt-self.p0, F)
 
 class control: #main control class, to be summoned attached to a control_DOF instance ran inside aircraft class instance
     def __init__(self, DOF=None, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0]), multiplier=1.0):
@@ -47,5 +53,12 @@ class control: #main control class, to be summoned attached to a control_DOF ins
         self.axis=self.axis=control_axis(p0=p0, p1=p1)
         self.multiplier=multiplier
         self.paninds=[]
-    def addpanels(self, panlist): #function for later programming of control derivative and hinge moment computation
-        self.paninds+=panlist
+    def panlist(self, paninds, sld): #return indexes of panels belonging to the control surface
+        return [pan for pan in paninds if np.cross(sld.panels[pan].colpoint[0]-self.axis.p0, self.axis.u)@np.cross(np.array([1.0, 0.0, 0.0]), self.axis.u)>0.0]
+    def hinge_moment(self, panlist, sld):
+        H=0.0
+        S=0.0
+        for pan in self.panlist(paninds=panlist, sld=sld):
+            H+=self.axis.panel_hinge_moment(sld.panels[pan].colpoint, sld.forces[pan])
+            S+=sld.panels[pan].S
+        return H

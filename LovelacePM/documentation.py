@@ -357,8 +357,10 @@ methods
 =======
 
 __init__
+panel_hinge_moment
 '''
 control.control_axis.__init__.__doc__='''__init__(p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0])): instantiate a control axis defined between points p0 and p1'''
+control.control_axis.panel_hinge_moment.__doc__='''panel_hinge_moment(pt, F): returns hinge moment produced on the axis at hand by force F acting on point pt'''
 control.control.__doc__='''
 Class to be added to wing quadrants and controlled from aircraft instance
 
@@ -376,11 +378,13 @@ methods
 =======
 
 __init__
-addpanels
+panlist
+hinge_moment
 '''
 control.control.__init__.__doc__='''__init__(DOF=None, p0=np.array([0.0, 0.0, 0.0]), p1=np.array([0.0, 1.0, 0.0]), multiplier=1.0): instantiate control
 with controlling DOF in DOF kwarg, with axis defined between points p0 and p1, with multiplier in multiplier kwarg'''
-control.control.addpanels.__doc__='''addpanels(panlist): adds panels listed in index list panlist to control.paninds list of rotated panels\'s indexes'''
+control.control.hinge_moment.__doc__='''hinge_moment(panlist, sld): returns hinge moment around control surface (with panels listed by their indexes in paninds, for associated Solid class instance sld)'''
+control.control.panlist.__doc__='''panlist(paninds, sld): returns a list of panel indexes (among the initially listed in argument paninds) which are part of a control surface'''
 
 wing.__doc__='''
 Module containing classes for wing definition
@@ -482,6 +486,7 @@ close_tip
 calc_coefs
 hascorrection
 calc_corrected_forces
+hinge_moments
 '''
 wing.wing_quadrant.__init__.__doc__='''__init__(sld, sect1=None, sect2=None, control_names=[], control_axpercs_x=[], control_axpercs_thickness=[], \
         control_multipliers=[]): constructor for wing_quadrant class. sect1 and sect2 set correspondent sections in the wing quadrant (by convention:
@@ -510,6 +515,7 @@ wing.wing_quadrant.calc_corrected_forces.__doc__='''calc_corrected_forces(): cal
 Returns variations in coefficients return dCX, dCY, dCZ, dCl, dCm, dCn integrated along wing quadrant'''
 wing.wing_quadrant.design_derivs.__doc__='''design_derivs(sectside=1): returns derivatives in panel positions (drdi) and normal vectors (dndi) for an incidence variation 
 of section \'sectside\' in the given quadrant. Return value in degrees'''
+wing.wing_quadrant.hinge_moments.__doc__='''hinge_moments(): returns dictionary with hinge moments for each control surface (e. g. {'aileron': -1.733346629083214, 'tab': 0.035789510208054764})'''
 
 wing.wing.__doc__='''
 Class to model a whole wing through calls to methods of several queued wing quadrants
